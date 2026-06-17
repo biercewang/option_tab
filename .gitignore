@@ -1,0 +1,11 @@
+.build/
+dist/
+.DS_Store
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+*.swp
+*.log
+*.app/
+*.dSYM/
+Package.resolved
