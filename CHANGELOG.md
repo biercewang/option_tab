@@ -10,6 +10,8 @@
 - Added double `Option` current-window minimization.
 - Made double `Option` restore the most recently minimized window when all
   windows are already minimized.
+- Reduced restore-time visual jitter by focusing only the selected window's app
+  instead of activating every window in that app.
 - Prioritized the freshly minimized window as the next `Option-Tab` default so
   tapping and releasing immediately restores the window you just minimized.
 - Added window layout shortcuts:

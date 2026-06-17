@@ -14,14 +14,14 @@ final class WindowFocuser {
                 Accessibility.setBool(axWindow, kAXMinimizedAttribute as CFString, value: false)
             }
 
-            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            app.activate(options: [.activateIgnoringOtherApps])
 
             let axApp = Accessibility.applicationElement(pid: window.pid)
             Accessibility.setElement(axApp, kAXFocusedWindowAttribute as CFString, value: axWindow)
             Accessibility.setElement(axApp, kAXMainWindowAttribute as CFString, value: axWindow)
             Accessibility.raise(axWindow)
         } else {
-            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            app.activate(options: [.activateIgnoringOtherApps])
             if !hasAccessibility {
                 _ = Accessibility.isTrusted(prompt: true)
             }
