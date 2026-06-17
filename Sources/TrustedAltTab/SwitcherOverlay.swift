@@ -151,9 +151,7 @@ final class SwitcherOverlay {
             return nil
         }
 
-        let window = windows[selectedIndex]
-        cancel()
-        return window
+        return windows[selectedIndex]
     }
 
     func cancel() {

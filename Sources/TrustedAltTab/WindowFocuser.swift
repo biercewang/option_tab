@@ -6,20 +6,30 @@ final class WindowFocuser {
             return
         }
 
-        app.unhide()
+        if app.isHidden {
+            app.unhide()
+        }
 
         let hasAccessibility = Accessibility.isTrusted()
         if hasAccessibility, let axWindow = bestAccessibilityMatch(for: window) {
+            let axApp = Accessibility.applicationElement(pid: window.pid)
+            Accessibility.setElement(axApp, kAXFocusedWindowAttribute as CFString, value: axWindow)
+            Accessibility.setElement(axApp, kAXMainWindowAttribute as CFString, value: axWindow)
+
             if Accessibility.boolAttribute(axWindow, kAXMinimizedAttribute as CFString) == true {
                 Accessibility.setBool(axWindow, kAXMinimizedAttribute as CFString, value: false)
             }
 
             app.activate(options: [.activateIgnoringOtherApps])
-
-            let axApp = Accessibility.applicationElement(pid: window.pid)
             Accessibility.setElement(axApp, kAXFocusedWindowAttribute as CFString, value: axWindow)
             Accessibility.setElement(axApp, kAXMainWindowAttribute as CFString, value: axWindow)
             Accessibility.raise(axWindow)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                Accessibility.setElement(axApp, kAXFocusedWindowAttribute as CFString, value: axWindow)
+                Accessibility.setElement(axApp, kAXMainWindowAttribute as CFString, value: axWindow)
+                Accessibility.raise(axWindow)
+            }
         } else {
             app.activate(options: [.activateIgnoringOtherApps])
             if !hasAccessibility {

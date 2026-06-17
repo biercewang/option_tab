@@ -194,8 +194,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastMinimizedWindow = nil
         currentWindows.removeAll()
 
+        let shouldDeferOverlayDismissal = shouldDeferOverlayDismissal(for: window)
+        if !shouldDeferOverlayDismissal {
+            overlay.cancel()
+        }
+
         DispatchQueue.main.async { [weak self] in
-            self?.focusSelectedWindow(window)
+            guard let self else {
+                return
+            }
+
+            self.focusSelectedWindow(window)
+
+            if shouldDeferOverlayDismissal {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) { [weak self] in
+                    self?.overlay.cancel()
+                }
+            }
         }
     }
 
@@ -204,6 +219,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.refreshAccessibilityCache()
         }
+    }
+
+    private func shouldDeferOverlayDismissal(for window: WindowInfo) -> Bool {
+        window.isMinimized || window.isHidden || !window.isOnScreen
     }
 
     private func restoreRecentlyMinimizedWindow() -> Bool {
