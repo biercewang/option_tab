@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recentWindowTimer: Timer?
     private var cachedAccessibilityWindows: [WindowInfo] = []
     private var lastMinimizedWindow: WindowInfo?
+    private var preferImmediateOverlayDismissalOnConfirm = false
     private var isRefreshingAccessibilityCache = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -37,9 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func wireSwitcher() {
-        hotKeys.onTab = { [weak self] reverse in
+        hotKeys.onTab = { [weak self] reverse, prefersImmediateDismissal in
             self?.optionDoubleTap.cancelPendingTap()
-            self?.handleOptionTab(reverse: reverse)
+            self?.handleOptionTab(reverse: reverse, prefersImmediateDismissal: prefersImmediateDismissal)
         }
 
         hotKeys.onSnap = { [weak self] direction in
@@ -141,8 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleOptionTab(reverse: Bool) {
+    private func handleOptionTab(reverse: Bool, prefersImmediateDismissal: Bool = false) {
         DebugLog.write("handleOptionTab reverse=\(reverse) overlayVisible=\(overlay.isVisible)")
+        preferImmediateOverlayDismissalOnConfirm = prefersImmediateDismissal
+
         if overlay.isVisible {
             overlay.cycle(reverse: reverse)
             return
@@ -194,7 +197,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastMinimizedWindow = nil
         currentWindows.removeAll()
 
-        let shouldDeferOverlayDismissal = shouldDeferOverlayDismissal(for: window)
+        let shouldDismissImmediately = preferImmediateOverlayDismissalOnConfirm
+        preferImmediateOverlayDismissalOnConfirm = false
+
+        let shouldDeferOverlayDismissal = shouldDeferOverlayDismissal(for: window) && !shouldDismissImmediately
         if !shouldDeferOverlayDismissal {
             overlay.cancel()
         }

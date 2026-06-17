@@ -2,7 +2,7 @@ import Carbon
 import Foundation
 
 final class HotKeyManager {
-    var onTab: ((Bool) -> Void)?
+    var onTab: ((Bool, Bool) -> Void)?
     var onSnap: ((WindowSnapDirection) -> Void)?
     var onCommand: ((WindowCommand) -> Void)?
 
@@ -108,8 +108,9 @@ final class HotKeyManager {
             switch hotKeyID.id {
             case HotKeyID.forward, HotKeyID.reverse, HotKeyID.reverseAlias:
                 let reverse = hotKeyID.id == HotKeyID.reverse || hotKeyID.id == HotKeyID.reverseAlias
+                let prefersImmediateDismissal = hotKeyID.id == HotKeyID.reverseAlias
                 DebugLog.write("hotkey pressed reverse=\(reverse)")
-                self?.onTab?(reverse)
+                self?.onTab?(reverse, prefersImmediateDismissal)
             case HotKeyID.snapLeft, HotKeyID.snapLeftAlias:
                 DebugLog.write("hotkey snap left")
                 self?.onSnap?(.left)
