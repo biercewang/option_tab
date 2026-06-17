@@ -19,7 +19,8 @@ window.
 - Visible and minimized-to-Dock windows in the same list.
 - Window thumbnails when Screen Recording permission is available.
 - App-icon fallback when thumbnails are disabled or unavailable.
-- Double `Option` to minimize the visually frontmost window.
+- Double `Option` to minimize the visually frontmost window, or restore the
+  most recently minimized window when all windows are minimized.
 - Window layout shortcuts for the visually frontmost window.
 - Optional experimental `Option-Z/A/S/X/C/V/W/Q` command forwarding.
 - Menu-bar settings and user-level login-at-startup support.
@@ -32,7 +33,7 @@ window.
 | `Option-Tab` | Open or advance the window switcher |
 | `Option-Shift-Tab` | Reverse in the window switcher |
 | `Option-·` | Reverse in the window switcher |
-| double `Option` | Minimize the visually frontmost window |
+| double `Option` | Minimize the visually frontmost window, or restore the most recently minimized window when none are visible |
 | `Option-←` | Move the visually frontmost window to the left half |
 | `Option-→` | Move the visually frontmost window to the right half |
 | `Option-1` | Move the visually frontmost window to the left half |

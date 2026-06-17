@@ -111,6 +111,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 self?.refreshAccessibilityCache()
             }
+        } else if windowProvider.visibleWindowsOnly(log: false).isEmpty,
+                  restoreRecentlyMinimizedWindow() {
+            return
         } else {
             NSSound.beep()
         }
@@ -201,6 +204,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.refreshAccessibilityCache()
         }
+    }
+
+    private func restoreRecentlyMinimizedWindow() -> Bool {
+        guard Accessibility.isTrusted(prompt: true) else {
+            DebugLog.write("restore minimized failed: accessibility not trusted")
+            return false
+        }
+
+        let candidates = recentlyMinimizedRestoreCandidates()
+        guard let window = recentWindowTracker.sort(candidates).first else {
+            DebugLog.write("restore minimized failed: no minimized window candidate")
+            refreshAccessibilityCache()
+            return false
+        }
+
+        DebugLog.write("restoring recently minimized app=\(window.appName) title=\(window.displayTitle)")
+        lastMinimizedWindow = nil
+        recentWindowTracker.record(window)
+        focusSelectedWindow(window)
+        return true
     }
 
     private func startAccessibilityCache() {
@@ -298,6 +321,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return visibleWindows + extras
+    }
+
+    private func recentlyMinimizedRestoreCandidates() -> [WindowInfo] {
+        let visibleWindows = windowProvider.visibleWindowsOnly(log: false)
+        let freshMinimizedWindows = windowProvider.accessibilityOnlyWindows(
+            excluding: visibleWindows,
+            includeMinimized: true,
+            includeHidden: false
+        )
+
+        var candidates: [WindowInfo] = []
+
+        if let lastMinimizedWindow {
+            appendRestoreCandidate(lastMinimizedWindow, to: &candidates)
+        }
+
+        for window in cachedAccessibilityWindows where window.isMinimized {
+            appendRestoreCandidate(window, to: &candidates)
+        }
+
+        for window in freshMinimizedWindows where window.isMinimized {
+            appendRestoreCandidate(window, to: &candidates)
+        }
+
+        return candidates
+    }
+
+    private func appendRestoreCandidate(_ window: WindowInfo, to candidates: inout [WindowInfo]) {
+        guard window.isMinimized || !window.isOnScreen else {
+            return
+        }
+
+        guard !candidates.contains(where: { isSameRestorableWindow($0, window) }) else {
+            return
+        }
+
+        candidates.append(window)
     }
 
     private func cacheRecentlyMinimizedWindow(_ window: WindowInfo) {
