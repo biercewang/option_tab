@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var accessibilityCacheTimer: Timer?
     private var recentWindowTimer: Timer?
     private var cachedAccessibilityWindows: [WindowInfo] = []
+    private var lastMinimizedWindow: WindowInfo?
     private var isRefreshingAccessibilityCache = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -99,7 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if let minimizedWindow = currentWindowMinimizer.minimizeFrontmostWindow() {
-            recentWindowTracker.recordRecentlyMinimized(minimizedWindow)
+            let minimizedInfo = windowInfo(from: minimizedWindow)
+            lastMinimizedWindow = minimizedInfo
+            cacheRecentlyMinimizedWindow(minimizedInfo)
+            recentWindowTracker.record(minimizedInfo)
             refreshAccessibilityCache()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 self?.refreshAccessibilityCache()
@@ -140,6 +144,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let visibleWindows = windowProvider.visibleWindowsOnly()
         currentWindows = mergeWindows(visibleWindows: visibleWindows, cachedWindows: cachedAccessibilityWindows)
+        if let lastMinimizedWindow, !currentWindows.contains(where: { isSameRestorableWindow($0, lastMinimizedWindow) }) {
+            currentWindows.append(lastMinimizedWindow)
+        }
+
         let frontmostWindow = windowProvider.frontmostVisibleWindow(from: visibleWindows)
         if let frontmostWindow {
             recentWindowTracker.record(frontmostWindow)
@@ -156,6 +164,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let initialIndex: Int
         if reverse {
             initialIndex = max(currentWindows.count - 1, 0)
+        } else if let lastMinimizedWindow,
+                  let minimizedIndex = currentWindows.firstIndex(where: { isSameRestorableWindow($0, lastMinimizedWindow) }) {
+            initialIndex = minimizedIndex
+            DebugLog.write("initial selection recently minimized app=\(lastMinimizedWindow.appName) title=\(lastMinimizedWindow.displayTitle) index=\(minimizedIndex)")
         } else {
             initialIndex = currentWindows.count > 1 ? 1 : 0
         }
@@ -173,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func completeSelection(_ window: WindowInfo) {
         stopOptionReleaseWatcher()
         recentWindowTracker.record(window)
+        lastMinimizedWindow = nil
         currentWindows.removeAll()
 
         DispatchQueue.main.async { [weak self] in
@@ -282,6 +295,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return visibleWindows + extras
+    }
+
+    private func cacheRecentlyMinimizedWindow(_ window: WindowInfo) {
+        cachedAccessibilityWindows.removeAll { cached in
+            isSameRestorableWindow(cached, window)
+        }
+        cachedAccessibilityWindows.insert(window, at: 0)
+    }
+
+    private func windowInfo(from target: DisplayedWindowTarget) -> WindowInfo {
+        let app = NSRunningApplication(processIdentifier: target.pid)
+        return WindowInfo(
+            id: target.id,
+            pid: target.pid,
+            appName: target.appName,
+            title: target.title,
+            bounds: target.bounds,
+            icon: app?.icon,
+            isOnScreen: false,
+            isMinimized: true,
+            isHidden: app?.isHidden ?? false,
+            order: 0
+        )
+    }
+
+    private func isSameRestorableWindow(_ lhs: WindowInfo, _ rhs: WindowInfo) -> Bool {
+        if lhs.identityKey == rhs.identityKey {
+            return true
+        }
+
+        let lhsTitle = lhs.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rhsTitle = rhs.title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return lhs.pid == rhs.pid
+            && !lhsTitle.isEmpty
+            && lhsTitle == rhsTitle
     }
 
     private func startOptionReleaseWatcher() {
