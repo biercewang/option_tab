@@ -186,4 +186,8 @@ struct DisplayedWindowTarget {
             String(Int(bounds.height.rounded()))
         ].joined(separator: "|")
     }
+
+    var appKey: String {
+        "\(pid)|\(appName)"
+    }
 }

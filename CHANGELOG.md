@@ -8,8 +8,8 @@
 - Added MRU-style window ordering.
 - Added app/window thumbnails with screen-recording permission fallback.
 - Added double `Option` current-window minimization.
-- Deprioritized freshly minimized windows so they are not immediately selected
-  again by `Option-Tab`.
+- Recorded freshly minimized windows as recent so `Option-Tab` can immediately
+  restore the window you just minimized.
 - Added window layout shortcuts:
   - `Option-←` / `Option-→`
   - `Option-1` / `Option-2`

@@ -99,7 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if let minimizedWindow = currentWindowMinimizer.minimizeFrontmostWindow() {
-            recentWindowTracker.deprioritizeRecentlyMinimized(minimizedWindow)
+            recentWindowTracker.recordRecentlyMinimized(minimizedWindow)
+            refreshAccessibilityCache()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 self?.refreshAccessibilityCache()
             }
