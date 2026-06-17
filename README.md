@@ -1,5 +1,7 @@
 # TrustedAltTab
 
+English | [中文](README.zh-CN.md)
+
 TrustedAltTab is a local, auditable macOS window switcher and lightweight window
 manager. It is built with Swift, AppKit, Carbon HotKey APIs, CoreGraphics, and
 macOS Accessibility APIs.
