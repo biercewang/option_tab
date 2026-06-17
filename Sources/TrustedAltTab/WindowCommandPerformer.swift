@@ -38,8 +38,14 @@ enum WindowCommand {
 
 final class WindowCommandPerformer {
     private let resolver = DisplayedWindowResolver()
+    private var commandPending = false
 
     func perform(_ command: WindowCommand) -> Bool {
+        guard !commandPending else {
+            DebugLog.write("command ignored: another command is pending command=\(command.logName)")
+            return true
+        }
+
         guard let target = resolver.frontmostTarget() else {
             DebugLog.write("command failed: no frontmost displayed window command=\(command.logName)")
             return false
@@ -51,32 +57,66 @@ final class WindowCommandPerformer {
             return false
         }
 
-        focus(target, app: app)
+        commandPending = true
+        DebugLog.write("command queued app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self, weak app] in
-            guard let self, let app else {
+        waitForOptionRelease(startTime: Date.timeIntervalSinceReferenceDate) { [weak self, app] in
+            guard let self else {
                 return
             }
 
-            if self.performMenuCommand(command, pid: target.pid) {
-                DebugLog.write("performed menu command app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
-                return
-            }
+            self.focus(target, app: app)
 
-            if command == .quit, app.terminate() {
-                DebugLog.write("requested app terminate app=\(target.appName) title=\(target.displayTitle)")
-                return
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self, app] in
+                self?.finish(command, target: target, app: app)
             }
-
-            self.postCommandKey(command.keyCode)
-            DebugLog.write("posted fallback command key app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
         }
 
         return true
     }
 
+    private func finish(_ command: WindowCommand, target: DisplayedWindowTarget, app: NSRunningApplication) {
+        defer {
+            commandPending = false
+        }
+
+        if performMenuCommand(command, pid: target.pid) {
+            DebugLog.write("performed menu command app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
+            return
+        }
+
+        DebugLog.write("menu command unavailable app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
+
+        if command == .quit, app.terminate() {
+            DebugLog.write("requested app terminate app=\(target.appName) title=\(target.displayTitle)")
+            return
+        }
+
+        postCommandKey(command.keyCode, to: target.pid)
+        DebugLog.write("posted fallback command key app=\(target.appName) title=\(target.displayTitle) command=\(command.logName)")
+    }
+
+    private func waitForOptionRelease(startTime: TimeInterval, action: @escaping () -> Void) {
+        let flags = CGEventSource.flagsState(.combinedSessionState)
+        guard flags.contains(.maskAlternate) else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03, execute: action)
+            return
+        }
+
+        let elapsed = Date.timeIntervalSinceReferenceDate - startTime
+        guard elapsed < 0.8 else {
+            DebugLog.write("command proceeding while Option is still down after \(String(format: "%.2f", elapsed))s")
+            action()
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+            self?.waitForOptionRelease(startTime: startTime, action: action)
+        }
+    }
+
     private func focus(_ target: DisplayedWindowTarget, app: NSRunningApplication) {
-        app.activate(options: [.activateIgnoringOtherApps])
+        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
 
         guard Accessibility.isTrusted(),
               let window = resolver.accessibilityWindow(for: target)
@@ -186,15 +226,15 @@ final class WindowCommandPerformer {
         return nil
     }
 
-    private func postCommandKey(_ keyCode: CGKeyCode) {
+    private func postCommandKey(_ keyCode: CGKeyCode, to pid: pid_t) {
         let source = CGEventSource(stateID: .hidSystemState)
 
         let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
         down?.flags = .maskCommand
-        down?.post(tap: .cghidEventTap)
+        down?.postToPid(pid)
 
         let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
         up?.flags = .maskCommand
-        up?.post(tap: .cghidEventTap)
+        up?.postToPid(pid)
     }
 }

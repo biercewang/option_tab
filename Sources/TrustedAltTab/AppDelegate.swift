@@ -58,7 +58,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func requestPermissions() {
-        if settings.includeMinimizedWindows || settings.includeHiddenWindows || settings.minimizeOnDoubleOption {
+        if settings.includeMinimizedWindows
+            || settings.includeHiddenWindows
+            || settings.minimizeOnDoubleOption
+            || settings.optionCommandKeysEnabled {
             _ = Accessibility.isTrusted(prompt: true)
         }
 
@@ -498,6 +501,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleOptionCommandKeys() {
         settings.optionCommandKeysEnabled.toggle()
         optionDoubleTap.cancelPendingTap()
+
+        if settings.optionCommandKeysEnabled {
+            _ = Accessibility.isTrusted(prompt: true)
+        }
 
         if settings.enabled {
             if !startKeyboardCaptureAfterSettingsChange() {
