@@ -3,7 +3,9 @@ import Foundation
 final class RecentWindowTracker {
     private var windowRecency: [String: TimeInterval] = [:]
     private var appRecency: [String: TimeInterval] = [:]
+    private var minimizedPenalty: [String: TimeInterval] = [:]
     private var seeded = false
+    private let minimizedPenaltyDuration: TimeInterval = 30
 
     func seedIfNeeded(with windows: [WindowInfo]) {
         guard !seeded else {
@@ -20,6 +22,12 @@ final class RecentWindowTracker {
 
     func record(_ window: WindowInfo) {
         record(window, at: Date.timeIntervalSinceReferenceDate, prune: true)
+    }
+
+    func deprioritizeRecentlyMinimized(_ target: DisplayedWindowTarget) {
+        minimizedPenalty[target.identityKey] = Date.timeIntervalSinceReferenceDate
+        windowRecency.removeValue(forKey: target.identityKey)
+        prune()
     }
 
     func sort(_ windows: [WindowInfo], frontmostWindow: WindowInfo? = nil) -> [WindowInfo] {
@@ -53,6 +61,10 @@ final class RecentWindowTracker {
     }
 
     private func recencyScore(for window: WindowInfo, frontmostWindow: WindowInfo?) -> TimeInterval {
+        if window.isMinimized, isRecentlyMinimized(window) {
+            return -1
+        }
+
         if let frontmostWindow {
             if window.identityKey == frontmostWindow.identityKey {
                 return Date.timeIntervalSinceReferenceDate + 2
@@ -74,8 +86,19 @@ final class RecentWindowTracker {
         return 0
     }
 
+    private func isRecentlyMinimized(_ window: WindowInfo) -> Bool {
+        guard let timestamp = minimizedPenalty[window.identityKey] else {
+            return false
+        }
+
+        return Date.timeIntervalSinceReferenceDate - timestamp <= minimizedPenaltyDuration
+    }
+
     private func prune() {
         let maxEntries = 300
+        let now = Date.timeIntervalSinceReferenceDate
+
+        minimizedPenalty = minimizedPenalty.filter { now - $0.value <= minimizedPenaltyDuration }
 
         if windowRecency.count > maxEntries {
             windowRecency = Dictionary(

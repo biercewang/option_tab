@@ -175,4 +175,15 @@ struct DisplayedWindowTarget {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "无标题窗口" : trimmed
     }
+
+    var identityKey: String {
+        [
+            String(pid),
+            displayTitle,
+            String(Int(bounds.origin.x.rounded())),
+            String(Int(bounds.origin.y.rounded())),
+            String(Int(bounds.width.rounded())),
+            String(Int(bounds.height.rounded()))
+        ].joined(separator: "|")
+    }
 }

@@ -98,7 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        if currentWindowMinimizer.minimizeFrontmostWindow() {
+        if let minimizedWindow = currentWindowMinimizer.minimizeFrontmostWindow() {
+            recentWindowTracker.deprioritizeRecentlyMinimized(minimizedWindow)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 self?.refreshAccessibilityCache()
             }
@@ -136,9 +137,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        currentWindows = windowProvider.visibleWindowsOnly()
-        currentWindows = mergeWindows(visibleWindows: currentWindows, cachedWindows: cachedAccessibilityWindows)
-        let frontmostWindow = windowProvider.frontmostVisibleWindow(from: currentWindows)
+        let visibleWindows = windowProvider.visibleWindowsOnly()
+        currentWindows = mergeWindows(visibleWindows: visibleWindows, cachedWindows: cachedAccessibilityWindows)
+        let frontmostWindow = windowProvider.frontmostVisibleWindow(from: visibleWindows)
         if let frontmostWindow {
             recentWindowTracker.record(frontmostWindow)
             DebugLog.write("frontmost window app=\(frontmostWindow.appName) title=\(frontmostWindow.displayTitle)")
