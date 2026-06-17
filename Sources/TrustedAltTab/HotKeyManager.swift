@@ -52,7 +52,13 @@ final class HotKeyManager {
         }
 
         if commandKeysEnabled {
-            guard registerHotKey(keyCode: UInt32(kVK_ANSI_W), id: HotKeyID.closeWindow, modifiers: UInt32(optionKey)),
+            guard registerHotKey(keyCode: UInt32(kVK_ANSI_Z), id: HotKeyID.undo, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_A), id: HotKeyID.selectAll, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_S), id: HotKeyID.save, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_X), id: HotKeyID.cut, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_C), id: HotKeyID.copy, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_V), id: HotKeyID.paste, modifiers: UInt32(optionKey)),
+                  registerHotKey(keyCode: UInt32(kVK_ANSI_W), id: HotKeyID.closeWindow, modifiers: UInt32(optionKey)),
                   registerHotKey(keyCode: UInt32(kVK_ANSI_Q), id: HotKeyID.quitApp, modifiers: UInt32(optionKey)) else {
                 DebugLog.write("RegisterEventHotKey command keys failed")
                 stop()
@@ -119,6 +125,24 @@ final class HotKeyManager {
             case HotKeyID.snapToggleFill:
                 DebugLog.write("hotkey snap toggle fill")
                 self?.onSnap?(.toggleFill)
+            case HotKeyID.undo:
+                DebugLog.write("hotkey command undo")
+                self?.onCommand?(.undo)
+            case HotKeyID.selectAll:
+                DebugLog.write("hotkey command selectAll")
+                self?.onCommand?(.selectAll)
+            case HotKeyID.save:
+                DebugLog.write("hotkey command save")
+                self?.onCommand?(.save)
+            case HotKeyID.cut:
+                DebugLog.write("hotkey command cut")
+                self?.onCommand?(.cut)
+            case HotKeyID.copy:
+                DebugLog.write("hotkey command copy")
+                self?.onCommand?(.copy)
+            case HotKeyID.paste:
+                DebugLog.write("hotkey command paste")
+                self?.onCommand?(.paste)
             case HotKeyID.closeWindow:
                 DebugLog.write("hotkey command close")
                 self?.onCommand?(.close)
@@ -175,6 +199,12 @@ private enum HotKeyID {
     static let snapRightAlias: UInt32 = 10
     static let snapToggleFill: UInt32 = 11
     static let reverseAlias: UInt32 = 12
+    static let undo: UInt32 = 13
+    static let selectAll: UInt32 = 14
+    static let save: UInt32 = 15
+    static let cut: UInt32 = 16
+    static let copy: UInt32 = 17
+    static let paste: UInt32 = 18
 }
 
 private let hotKeyEventHandler: EventHandlerUPP = { _, event, refcon in

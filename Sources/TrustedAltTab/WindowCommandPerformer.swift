@@ -5,11 +5,29 @@ import CoreGraphics
 import Foundation
 
 enum WindowCommand {
+    case undo
+    case selectAll
+    case save
+    case cut
+    case copy
+    case paste
     case close
     case quit
 
     var logName: String {
         switch self {
+        case .undo:
+            return "undo"
+        case .selectAll:
+            return "selectAll"
+        case .save:
+            return "save"
+        case .cut:
+            return "cut"
+        case .copy:
+            return "copy"
+        case .paste:
+            return "paste"
         case .close:
             return "close"
         case .quit:
@@ -19,6 +37,18 @@ enum WindowCommand {
 
     var keyCode: CGKeyCode {
         switch self {
+        case .undo:
+            return CGKeyCode(kVK_ANSI_Z)
+        case .selectAll:
+            return CGKeyCode(kVK_ANSI_A)
+        case .save:
+            return CGKeyCode(kVK_ANSI_S)
+        case .cut:
+            return CGKeyCode(kVK_ANSI_X)
+        case .copy:
+            return CGKeyCode(kVK_ANSI_C)
+        case .paste:
+            return CGKeyCode(kVK_ANSI_V)
         case .close:
             return CGKeyCode(kVK_ANSI_W)
         case .quit:
@@ -28,6 +58,18 @@ enum WindowCommand {
 
     var menuCommandCharacter: String {
         switch self {
+        case .undo:
+            return "Z"
+        case .selectAll:
+            return "A"
+        case .save:
+            return "S"
+        case .cut:
+            return "X"
+        case .copy:
+            return "C"
+        case .paste:
+            return "V"
         case .close:
             return "W"
         case .quit:

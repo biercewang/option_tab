@@ -403,7 +403,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         doubleOptionItem.state = settings.minimizeOnDoubleOption ? .on : .off
         menu.addItem(doubleOptionItem)
 
-        let optionCommandItem = NSMenuItem(title: "启用 Option-W/Q 关闭/退出（实验）", action: #selector(toggleOptionCommandKeys), keyEquivalent: "")
+        let optionCommandItem = NSMenuItem(title: "启用 Option 字母快捷键（实验）", action: #selector(toggleOptionCommandKeys), keyEquivalent: "")
         optionCommandItem.target = self
         optionCommandItem.state = settings.optionCommandKeysEnabled ? .on : .off
         menu.addItem(optionCommandItem)
@@ -544,7 +544,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showHotKeyAlert() {
         let alert = NSAlert()
         alert.messageText = "TrustedAltTab 无法捕获快捷键"
-        alert.informativeText = "Option-Tab、Option-方向键、Option-W 或 Option-Q 可能已被其他应用占用。请退出其他窗口管理器，或在菜单栏里重新启用 TrustedAltTab。"
+        alert.informativeText = "Option-Tab、Option-方向键或 Option 字母快捷键可能已被其他应用占用。请退出其他窗口管理器，或在菜单栏里重新启用 TrustedAltTab。"
         alert.addButton(withTitle: "好")
         alert.addButton(withTitle: "稍后")
         alert.runModal()

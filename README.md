@@ -21,7 +21,7 @@ window.
 - App-icon fallback when thumbnails are disabled or unavailable.
 - Double `Option` to minimize the visually frontmost window.
 - Window layout shortcuts for the visually frontmost window.
-- Optional experimental `Option-W` / `Option-Q` command forwarding.
+- Optional experimental `Option-Z/A/S/X/C/V/W/Q` command forwarding.
 - Menu-bar settings and user-level login-at-startup support.
 - Local-only operation: no networking, telemetry, analytics, or updater.
 
@@ -40,11 +40,17 @@ window.
 | `Option-↑` | Fill the current screen's usable area without macOS full screen |
 | `Option-↓` | Restore the window to the pre-layout frame |
 | `Option-3` | Toggle fill/restore |
+| `Option-Z` | Optional: behave like `Command-Z` |
+| `Option-A` | Optional: behave like `Command-A` |
+| `Option-S` | Optional: behave like `Command-S` |
+| `Option-X` | Optional: behave like `Command-X` |
+| `Option-C` | Optional: behave like `Command-C` |
+| `Option-V` | Optional: behave like `Command-V` |
 | `Option-W` | Optional: behave like `Command-W` |
 | `Option-Q` | Optional: behave like `Command-Q` |
 
-`Option-W` and `Option-Q` are disabled by default. Enable them from the menu bar
-item only if you want TrustedAltTab to intercept those shortcuts.
+These Option-letter command shortcuts are disabled by default. Enable them from
+the menu bar item only if you want TrustedAltTab to intercept those shortcuts.
 
 ## Menu Items
 
@@ -53,7 +59,7 @@ item only if you want TrustedAltTab to intercept those shortcuts.
 - Include or exclude minimized Dock windows.
 - Include or exclude hidden app windows.
 - Enable or disable double-`Option` minimization.
-- Enable or disable experimental `Option-W/Q` close/quit shortcuts.
+- Enable or disable experimental Option-letter command shortcuts.
 - Enable or disable login-at-startup.
 - Open Accessibility and Screen Recording permission settings.
 - Show the window list manually.

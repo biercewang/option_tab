@@ -15,8 +15,8 @@
   - `Option-1` / `Option-2`
   - `Option-↑` / `Option-↓`
   - `Option-3`
-- Added optional experimental `Option-W` / `Option-Q` commands.
-- Made `Option-W` / `Option-Q` wait for the Option key to be released before
+- Added optional experimental `Option-Z/A/S/X/C/V/W/Q` commands.
+- Made Option-letter command shortcuts wait for the Option key to be released before
   dispatching the matching Command shortcut, improving reliability in apps that
   treat Option-letter combinations specially.
 - Added menu switches for common settings and login-at-startup support.
