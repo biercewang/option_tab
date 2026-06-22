@@ -38,4 +38,6 @@
   toggle behavior.
 - Preserved ordinary right-click behavior by replaying context clicks when no
   gesture or mouse chord is recognized.
+- Added a triple right-click privacy shield that covers all screens with black
+  panels, hides the pointer, and toggles off with another triple right-click.
 - Added menu switches for common settings and login-at-startup support.

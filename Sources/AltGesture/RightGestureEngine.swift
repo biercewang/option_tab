@@ -8,6 +8,7 @@ final class RightGestureController {
     private let settings: AppSettings
     private let configStore = RightGestureConfigStore()
     private var config: RightGestureConfig
+    private let privacyShield: PrivacyShieldController
     private let engine: RightGestureEngine
 
     var configURL: URL {
@@ -20,8 +21,13 @@ final class RightGestureController {
 
     init(settings: AppSettings = .shared) {
         self.settings = settings
-        config = configStore.load()
-        engine = RightGestureEngine(config: config)
+        let loadedConfig = configStore.load()
+        let shield = PrivacyShieldController()
+        config = loadedConfig
+        privacyShield = shield
+        engine = RightGestureEngine(config: loadedConfig)
+        engine.onTripleContextClick = { shield.toggle() }
+        engine.shouldReplayContextClick = { !shield.isVisible }
     }
 
     func startIfEnabled() {
@@ -53,6 +59,7 @@ final class RightGestureController {
 
     func stop() {
         engine.stop()
+        privacyShield.hide()
     }
 
     func requestPermissionsIfNeeded() {
@@ -208,6 +215,15 @@ final class RightGestureEngine {
     private let replaySource = CGEventSource(stateID: .hidSystemState)
     private let sender = RightGestureShortcutSender()
     private var config: RightGestureConfig
+    var onTripleContextClick: (() -> Void)?
+    var shouldReplayContextClick: (() -> Bool)?
+    private var contextClickTimes: [TimeInterval] = []
+    private var pendingContextClick: DispatchWorkItem?
+    private var replayPassthroughUntil = Date.distantPast
+    private var replayPassthroughPoint = CGPoint.zero
+    private let contextClickReplayDelay: TimeInterval = 0.42
+    private let tripleContextClickWindow: TimeInterval = 0.62
+    private let replayPassthroughDistance: CGFloat = 4
     private(set) var state: State = .stopped
 
     init(config: RightGestureConfig) {
@@ -272,6 +288,8 @@ final class RightGestureEngine {
         }
         runLoopSource = nil
         eventTap = nil
+        cancelPendingContextClick()
+        contextClickTimes.removeAll()
         state = .stopped
     }
 
@@ -283,7 +301,8 @@ final class RightGestureEngine {
             return Unmanaged.passUnretained(event)
         }
 
-        if event.getIntegerValueField(.eventSourceUserData) == replayEventMarker {
+        if event.getIntegerValueField(.eventSourceUserData) == replayEventMarker ||
+            isReplayPassthroughEvent(type: type, event: event) {
             return Unmanaged.passUnretained(event)
         }
 
@@ -318,18 +337,20 @@ final class RightGestureEngine {
                 return nil
             }
             if let action = matchTemplate() {
+                cancelContextClickSequence()
                 DebugLog.write("right gesture matched template: \(action.name)")
                 sender.send(action)
                 return nil
             }
             let code = directions.map(\.rawValue).joined()
             if let action = config.gestures[code] {
+                cancelContextClickSequence()
                 DebugLog.write("right gesture matched \(code): \(action.name)")
                 sender.send(action)
                 return nil
             }
-            if shouldReplayContextClick() {
-                replayContextClick(at: event.location)
+            if isContextClickCandidate() {
+                registerContextClick(at: event.location, timestamp: Date().timeIntervalSinceReferenceDate)
             }
             return nil
 
@@ -375,6 +396,7 @@ final class RightGestureEngine {
 
     private func performMouseChord(_ name: String) {
         performedMouseChord = true
+        cancelContextClickSequence()
         rawPoints.removeAll(keepingCapacity: true)
         directions.removeAll(keepingCapacity: true)
         if let action = config.mouseButtons[name] {
@@ -489,8 +511,58 @@ final class RightGestureEngine {
         return total / CGFloat(lhs.count)
     }
 
-    private func shouldReplayContextClick() -> Bool {
+    private func isContextClickCandidate() -> Bool {
         directions.isEmpty && maxDistanceFromStart() <= maxContextClickDistance
+    }
+
+    private func registerContextClick(at point: CGPoint, timestamp: TimeInterval) {
+        contextClickTimes = contextClickTimes.filter {
+            timestamp - $0 <= tripleContextClickWindow
+        }
+        contextClickTimes.append(timestamp)
+
+        if contextClickTimes.count >= 3 {
+            cancelPendingContextClick()
+            contextClickTimes.removeAll()
+            DebugLog.write("right gesture triple context click toggled privacy shield")
+            DispatchQueue.main.async { [weak self] in
+                self?.onTripleContextClick?()
+            }
+            return
+        }
+
+        scheduleContextClickReplay(at: point)
+    }
+
+    private func scheduleContextClickReplay(at point: CGPoint) {
+        cancelPendingContextClick()
+        guard shouldReplayContextClick?() ?? true else {
+            return
+        }
+
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else {
+                return
+            }
+            self.pendingContextClick = nil
+            self.contextClickTimes.removeAll()
+            guard self.shouldReplayContextClick?() ?? true else {
+                return
+            }
+            self.replayContextClick(at: point)
+        }
+        pendingContextClick = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + contextClickReplayDelay, execute: item)
+    }
+
+    private func cancelContextClickSequence() {
+        cancelPendingContextClick()
+        contextClickTimes.removeAll()
+    }
+
+    private func cancelPendingContextClick() {
+        pendingContextClick?.cancel()
+        pendingContextClick = nil
     }
 
     private func maxDistanceFromStart() -> CGFloat {
@@ -500,10 +572,24 @@ final class RightGestureEngine {
     }
 
     private func replayContextClick(at point: CGPoint) {
+        replayPassthroughPoint = point
+        replayPassthroughUntil = Date().addingTimeInterval(1.0)
         postReplayMouseEvent(type: .rightMouseDown, at: point)
         usleep(12_000)
         postReplayMouseEvent(type: .rightMouseUp, at: point)
         DebugLog.write("right gesture replayed context click")
+    }
+
+    private func isReplayPassthroughEvent(type: CGEventType, event: CGEvent) -> Bool {
+        guard type == .rightMouseDown || type == .rightMouseUp,
+              Date() <= replayPassthroughUntil else {
+            return false
+        }
+
+        return hypot(
+            event.location.x - replayPassthroughPoint.x,
+            event.location.y - replayPassthroughPoint.y
+        ) <= replayPassthroughDistance
     }
 
     private func postReplayMouseEvent(type: CGEventType, at point: CGPoint) {

@@ -1,0 +1,117 @@
+import AppKit
+
+final class PrivacyShieldController {
+    private var panels: [NSPanel] = []
+    private var cursorHidden = false
+    private var screenObserver: NSObjectProtocol?
+
+    var isVisible: Bool {
+        !panels.isEmpty
+    }
+
+    init() {
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.isVisible else {
+                return
+            }
+
+            self.show()
+        }
+    }
+
+    deinit {
+        if let screenObserver {
+            NotificationCenter.default.removeObserver(screenObserver)
+        }
+        hide()
+    }
+
+    func toggle() {
+        if isVisible {
+            hide()
+        } else {
+            show()
+        }
+    }
+
+    func show() {
+        hide()
+
+        panels = NSScreen.screens.map { screen in
+            let panel = PrivacyShieldPanel(
+                contentRect: screen.frame,
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            panel.backgroundColor = .black
+            panel.contentView = PrivacyShieldView(frame: NSRect(origin: .zero, size: screen.frame.size))
+            panel.contentView?.wantsLayer = true
+            panel.contentView?.layer?.backgroundColor = NSColor.black.cgColor
+            panel.hasShadow = false
+            panel.hidesOnDeactivate = false
+            panel.ignoresMouseEvents = false
+            panel.isMovable = false
+            panel.isOpaque = true
+            panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
+            panel.collectionBehavior = [
+                .canJoinAllSpaces,
+                .fullScreenAuxiliary,
+                .ignoresCycle,
+                .stationary
+            ]
+            panel.orderFrontRegardless()
+            return panel
+        }
+
+        if !cursorHidden {
+            NSCursor.hide()
+            cursorHidden = true
+        }
+
+        DebugLog.write("privacy shield shown screens=\(panels.count)")
+    }
+
+    func hide() {
+        guard !panels.isEmpty || cursorHidden else {
+            return
+        }
+
+        for panel in panels {
+            panel.orderOut(nil)
+        }
+        panels.removeAll()
+
+        if cursorHidden {
+            NSCursor.unhide()
+            cursorHidden = false
+        }
+
+        DebugLog.write("privacy shield hidden")
+    }
+}
+
+private final class PrivacyShieldPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        false
+    }
+
+    override var canBecomeMain: Bool {
+        false
+    }
+}
+
+private final class PrivacyShieldView: NSView {
+    private static let invisibleCursor = NSCursor(
+        image: NSImage(size: NSSize(width: 1, height: 1)),
+        hotSpot: .zero
+    )
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: Self.invisibleCursor)
+    }
+}
