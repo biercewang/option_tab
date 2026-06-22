@@ -32,4 +32,6 @@
 - Renamed the merged app to AltGesture with its own bundle id, icon, log file,
   config directory, and login item.
 - Made thumbnails opt-in by default to keep Screen Recording permission optional.
+- Added native Magnet-style window layouts and migrated known Magnet arrow
+  gestures to built-in window actions.
 - Added menu switches for common settings and login-at-startup support.

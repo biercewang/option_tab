@@ -22,6 +22,8 @@ window.
 - Double `Option` to minimize the visually frontmost window, or restore the
   most recently minimized window when all windows are minimized.
 - Window layout shortcuts for the visually frontmost window.
+- Built-in Magnet-style layouts: left/right/top/bottom halves, corners, center,
+  fill, and restore.
 - Optional experimental `Option-Z/A/S/X/C/V/W/Q` command forwarding.
 - Configurable right-button mouse gestures and right-button mouse chords.
 - Menu-bar settings and user-level login-at-startup support.
@@ -70,6 +72,10 @@ The merged config is stored at:
 ~/Library/Application Support/AltGesture/right-gestures.json
 ```
 
+Migrated `Control+Option+Arrow` gestures that previously targeted Magnet are
+converted to native AltGesture window actions, so Magnet is no longer required
+for those layouts.
+
 ## Menu Items
 
 - Enable or disable `Option-Tab`.
@@ -100,8 +106,9 @@ AltGesture may request:
   double-Option, and Option release.
 - Screen Recording: optional, only for local window thumbnails; thumbnails are
   off by default to avoid requesting this permission.
-- Automation: conditional, only for gesture actions that send shortcuts through
-  System Events.
+- Automation: conditional, only for custom gesture actions that still send
+  shortcuts through System Events. Built-in window layouts do not need
+  Automation.
 
 Hotkey registration itself uses Carbon and does not require Accessibility.
 See [docs/PERMISSIONS.zh-CN.md](docs/PERMISSIONS.zh-CN.md) for the minimal

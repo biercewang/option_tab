@@ -63,8 +63,13 @@ final class RightGestureController {
 
 final class RightGestureShortcutSender {
     private let source = CGEventSource(stateID: .hidSystemState)
+    private let windowSnapper = WindowSnapper()
 
     func send(_ action: RightGestureShortcutAction) {
+        if let windowAction = action.windowAction, sendWindowAction(windowAction) {
+            return
+        }
+
         for stroke in action.keys {
             if action.delivery == "systemEvents" {
                 sendViaSystemEvents(stroke)
@@ -93,6 +98,19 @@ final class RightGestureShortcutSender {
 
             usleep(20_000)
         }
+    }
+
+    private func sendWindowAction(_ name: String) -> Bool {
+        guard let direction = WindowSnapDirection(rightGestureActionName: name) else {
+            DebugLog.write("right gesture unknown window action: \(name)")
+            return false
+        }
+
+        let ok = windowSnapper.snapFrontmostWindow(to: direction)
+        if !ok {
+            NSSound.beep()
+        }
+        return true
     }
 
     private func postKey(_ keyCode: CGKeyCode, keyDown: Bool, flags: CGEventFlags) {

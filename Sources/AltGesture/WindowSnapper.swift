@@ -5,6 +5,13 @@ import Foundation
 enum WindowSnapDirection {
     case left
     case right
+    case top
+    case bottom
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+    case center
     case fill
     case restore
     case toggleFill
@@ -15,12 +22,57 @@ enum WindowSnapDirection {
             return "left"
         case .right:
             return "right"
+        case .top:
+            return "top"
+        case .bottom:
+            return "bottom"
+        case .topLeft:
+            return "topLeft"
+        case .topRight:
+            return "topRight"
+        case .bottomLeft:
+            return "bottomLeft"
+        case .bottomRight:
+            return "bottomRight"
+        case .center:
+            return "center"
         case .fill:
             return "fill"
         case .restore:
             return "restore"
         case .toggleFill:
             return "toggleFill"
+        }
+    }
+
+    init?(rightGestureActionName name: String) {
+        switch name.lowercased() {
+        case "left", "lefthalf":
+            self = .left
+        case "right", "righthalf":
+            self = .right
+        case "top", "up", "tophalf":
+            self = .top
+        case "bottom", "down", "bottomhalf":
+            self = .bottom
+        case "topleft", "upperleft":
+            self = .topLeft
+        case "topright", "upperright":
+            self = .topRight
+        case "bottomleft", "lowerleft":
+            self = .bottomLeft
+        case "bottomright", "lowerright":
+            self = .bottomRight
+        case "center", "centre":
+            self = .center
+        case "fill", "maximize", "maximise":
+            self = .fill
+        case "restore":
+            self = .restore
+        case "togglefill", "togglemaximize", "togglemaximise":
+            self = .toggleFill
+        default:
+            return nil
         }
     }
 }
@@ -145,6 +197,8 @@ final class WindowSnapper {
         let visibleFrame = visibleFrameForTarget(target)
         let leftWidth = floor(visibleFrame.width / 2)
         let rightWidth = visibleFrame.width - leftWidth
+        let topHeight = floor(visibleFrame.height / 2)
+        let bottomHeight = visibleFrame.height - topHeight
 
         switch direction {
         case .left:
@@ -160,6 +214,57 @@ final class WindowSnapper {
                 y: visibleFrame.minY,
                 width: rightWidth,
                 height: visibleFrame.height
+            ).integral
+        case .top:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY,
+                width: visibleFrame.width,
+                height: topHeight
+            ).integral
+        case .bottom:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY + topHeight,
+                width: visibleFrame.width,
+                height: bottomHeight
+            ).integral
+        case .topLeft:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY,
+                width: leftWidth,
+                height: topHeight
+            ).integral
+        case .topRight:
+            return CGRect(
+                x: visibleFrame.minX + leftWidth,
+                y: visibleFrame.minY,
+                width: rightWidth,
+                height: topHeight
+            ).integral
+        case .bottomLeft:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY + topHeight,
+                width: leftWidth,
+                height: bottomHeight
+            ).integral
+        case .bottomRight:
+            return CGRect(
+                x: visibleFrame.minX + leftWidth,
+                y: visibleFrame.minY + topHeight,
+                width: rightWidth,
+                height: bottomHeight
+            ).integral
+        case .center:
+            let currentWidth = min(max(target.bounds.width, visibleFrame.width * 0.35), visibleFrame.width)
+            let currentHeight = min(max(target.bounds.height, visibleFrame.height * 0.35), visibleFrame.height)
+            return CGRect(
+                x: visibleFrame.midX - currentWidth / 2,
+                y: visibleFrame.midY - currentHeight / 2,
+                width: currentWidth,
+                height: currentHeight
             ).integral
         case .fill:
             return visibleFrame.integral

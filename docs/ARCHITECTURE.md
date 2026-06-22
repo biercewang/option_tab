@@ -45,3 +45,8 @@ Right-button gestures use a CoreGraphics event tap, so they need Accessibility
 and Input Monitoring. Some configured gesture actions use System Events to reach
 global shortcuts that do not reliably respond to synthesized CGEvents; those
 actions trigger macOS Automation permission for AltGesture.
+
+Known Magnet-style `Control+Option+Arrow` gesture actions migrate to native
+`windowAction` values. Supported native action names include `left`, `right`,
+`top`, `bottom`, `topLeft`, `topRight`, `bottomLeft`, `bottomRight`, `center`,
+`fill`, `restore`, and `toggleFill`.
