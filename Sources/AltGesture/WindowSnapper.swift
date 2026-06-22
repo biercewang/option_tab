@@ -79,7 +79,12 @@ enum WindowSnapDirection {
 
 final class WindowSnapper {
     private let resolver = DisplayedWindowResolver()
-    private var restoreFrames: [String: CGRect] = [:]
+    private let restoreStore = WindowRestoreFrameStore()
+    private var restoreFrames: [String: CGRect]
+
+    init() {
+        restoreFrames = restoreStore.load()
+    }
 
     func snapFrontmostWindow(to direction: WindowSnapDirection) -> Bool {
         guard Accessibility.isTrusted(prompt: true) else {
@@ -132,6 +137,7 @@ final class WindowSnapper {
         }
 
         restoreFrames[key] = Accessibility.rectAttribute(window) ?? target.bounds
+        restoreStore.save(restoreFrames)
     }
 
     private func restore(_ window: AXUIElement, target: DisplayedWindowTarget) -> Bool {
@@ -145,6 +151,7 @@ final class WindowSnapper {
 
         if confirm(window, frame: frame) {
             restoreFrames.removeValue(forKey: key)
+            restoreStore.save(restoreFrames)
             DebugLog.write("restored displayed window app=\(target.appName) title=\(target.displayTitle)")
             return true
         }
@@ -328,5 +335,62 @@ final class WindowSnapper {
             && abs(lhs.origin.y - rhs.origin.y) <= tolerance
             && abs(lhs.width - rhs.width) <= tolerance
             && abs(lhs.height - rhs.height) <= tolerance
+    }
+}
+
+private final class WindowRestoreFrameStore {
+    private let url: URL
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
+
+    init() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let directory = base.appendingPathComponent("AltGesture", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        url = directory.appendingPathComponent("window-restore-frames.json")
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    func load() -> [String: CGRect] {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return [:]
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let stored = try decoder.decode([String: StoredFrame].self, from: data)
+            return stored.mapValues(\.rect)
+        } catch {
+            DebugLog.write("restore frame store read failed: \(error)")
+            return [:]
+        }
+    }
+
+    func save(_ frames: [String: CGRect]) {
+        do {
+            let stored = frames.mapValues { StoredFrame(rect: $0) }
+            let data = try encoder.encode(stored)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            DebugLog.write("restore frame store write failed: \(error)")
+        }
+    }
+
+    private struct StoredFrame: Codable {
+        let x: CGFloat
+        let y: CGFloat
+        let width: CGFloat
+        let height: CGFloat
+
+        init(rect: CGRect) {
+            x = rect.origin.x
+            y = rect.origin.y
+            width = rect.width
+            height = rect.height
+        }
+
+        var rect: CGRect {
+            CGRect(x: x, y: y, width: width, height: height)
+        }
     }
 }

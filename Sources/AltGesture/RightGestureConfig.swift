@@ -206,26 +206,29 @@ final class RightGestureConfigStore {
     }
 
     private func nativeWindowAction(for action: RightGestureShortcutAction) -> String? {
-        guard action.delivery == "systemEvents", action.keys.count == 1, let stroke = action.keys.first else {
+        guard action.keys.count == 1, let stroke = action.keys.first else {
             return nil
         }
 
         let modifiers = Set(stroke.modifiers.map { $0.lowercased() })
-        guard modifiers == ["control", "option"] || modifiers == ["ctrl", "option"] || modifiers == ["control", "alt"] else {
-            return nil
+
+        if modifiers == ["control", "option"] || modifiers == ["ctrl", "option"] || modifiers == ["control", "alt"] {
+            switch stroke.keyCode {
+            case kVK_LeftArrow:
+                return "left"
+            case kVK_RightArrow:
+                return "right"
+            case kVK_UpArrow:
+                return "top"
+            case kVK_DownArrow:
+                return "bottom"
+            case kVK_ANSI_M:
+                return "toggleFill"
+            default:
+                return nil
+            }
         }
 
-        switch stroke.keyCode {
-        case kVK_LeftArrow:
-            return "left"
-        case kVK_RightArrow:
-            return "right"
-        case kVK_UpArrow:
-            return "top"
-        case kVK_DownArrow:
-            return "bottom"
-        default:
-            return nil
-        }
+        return nil
     }
 }
