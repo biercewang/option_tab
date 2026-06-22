@@ -12,7 +12,10 @@ final class AppSettings {
         static let includeHiddenWindows = "includeHiddenWindows"
         static let minimizeOnDoubleOption = "minimizeOnDoubleOption"
         static let optionCommandKeysEnabled = "optionCommandKeysEnabled"
+        static let rightGestureEnabled = "rightGestureEnabled"
         static let speedDefaultsVersion = "speedDefaultsVersion"
+        static let legacyDefaultsMigrationVersion = "legacyDefaultsMigrationVersion"
+        static let minimalPermissionsDefaultsVersion = "minimalPermissionsDefaultsVersion"
     }
 
     var enabled: Bool {
@@ -26,7 +29,7 @@ final class AppSettings {
 
     var showThumbnails: Bool {
         get {
-            value(for: Key.showThumbnails, default: true)
+            value(for: Key.showThumbnails, default: false)
         }
         set {
             defaults.set(newValue, forKey: Key.showThumbnails)
@@ -69,18 +72,69 @@ final class AppSettings {
         }
     }
 
+    var rightGestureEnabled: Bool {
+        get {
+            value(for: Key.rightGestureEnabled, default: true)
+        }
+        set {
+            defaults.set(newValue, forKey: Key.rightGestureEnabled)
+        }
+    }
+
     private init() {}
 
     func applySpeedDefaultsIfNeeded() {
+        migrateLegacyDefaultsIfNeeded()
+        applyMinimalPermissionsDefaultsIfNeeded()
+
         guard defaults.integer(forKey: Key.speedDefaultsVersion) < 2 else {
             return
         }
 
+        defaults.set(false, forKey: Key.showThumbnails)
         defaults.set(true, forKey: Key.includeMinimizedWindows)
         defaults.set(false, forKey: Key.includeHiddenWindows)
         defaults.set(true, forKey: Key.minimizeOnDoubleOption)
         defaults.set(false, forKey: Key.optionCommandKeysEnabled)
         defaults.set(2, forKey: Key.speedDefaultsVersion)
+    }
+
+    private func migrateLegacyDefaultsIfNeeded() {
+        guard defaults.integer(forKey: Key.legacyDefaultsMigrationVersion) < 1 else {
+            return
+        }
+
+        guard let legacyDomain = defaults.persistentDomain(forName: "local.trusted-alt-tab") else {
+            defaults.set(1, forKey: Key.legacyDefaultsMigrationVersion)
+            return
+        }
+
+        for key in [
+            Key.enabled,
+            Key.includeMinimizedWindows,
+            Key.includeHiddenWindows,
+            Key.minimizeOnDoubleOption,
+            Key.optionCommandKeysEnabled,
+            Key.rightGestureEnabled,
+            Key.speedDefaultsVersion
+        ] {
+            if let value = legacyDomain[key] {
+                defaults.set(value, forKey: key)
+            }
+        }
+
+        defaults.set(1, forKey: Key.legacyDefaultsMigrationVersion)
+        DebugLog.write("migrated user defaults from local.trusted-alt-tab")
+    }
+
+    private func applyMinimalPermissionsDefaultsIfNeeded() {
+        guard defaults.integer(forKey: Key.minimalPermissionsDefaultsVersion) < 1 else {
+            return
+        }
+
+        defaults.set(false, forKey: Key.showThumbnails)
+        defaults.set(1, forKey: Key.minimalPermissionsDefaultsVersion)
+        DebugLog.write("applied minimal permission defaults")
     }
 
     private func value(for key: String, default defaultValue: Bool) -> Bool {

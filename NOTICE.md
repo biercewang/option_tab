@@ -1,6 +1,6 @@
 # Notice
 
-TrustedAltTab is an independently implemented macOS utility built with Swift,
+AltGesture is an independently implemented macOS utility built with Swift,
 AppKit, Carbon HotKey APIs, CoreGraphics, and the macOS Accessibility APIs.
 
 ## Relationship To AltTab

@@ -27,4 +27,9 @@
 - Made Option-letter command shortcuts wait for the Option key to be released before
   dispatching the matching Command shortcut, improving reliability in apps that
   treat Option-letter combinations specially.
+- Merged right-button mouse gestures into AltGesture, including config
+  migration from RightKeyGesture and menu controls for reload/restart.
+- Renamed the merged app to AltGesture with its own bundle id, icon, log file,
+  config directory, and login item.
+- Made thumbnails opt-in by default to keep Screen Recording permission optional.
 - Added menu switches for common settings and login-at-startup support.

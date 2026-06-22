@@ -1,10 +1,10 @@
-# TrustedAltTab
+# AltGesture
 
 English | [中文](README.zh-CN.md)
 
-TrustedAltTab is a local, auditable macOS window switcher and lightweight window
-manager. It is built with Swift, AppKit, Carbon HotKey APIs, CoreGraphics, and
-macOS Accessibility APIs.
+AltGesture is a local, auditable macOS window switcher, lightweight window
+manager, and right-button mouse gesture utility. It is built with Swift, AppKit,
+Carbon HotKey APIs, CoreGraphics, and macOS Accessibility APIs.
 
 The main workflow is similar to a window-based Alt-Tab experience: hold
 `Option`, press `Tab` to open the window list, keep pressing `Tab` or reverse
@@ -17,12 +17,13 @@ window.
 - `Option-·` as an easier reverse-switching shortcut.
 - MRU-style ordering, with recently used windows first.
 - Visible and minimized-to-Dock windows in the same list.
-- Window thumbnails when Screen Recording permission is available.
+- Optional window thumbnails; disabled by default to minimize permission prompts.
 - App-icon fallback when thumbnails are disabled or unavailable.
 - Double `Option` to minimize the visually frontmost window, or restore the
   most recently minimized window when all windows are minimized.
 - Window layout shortcuts for the visually frontmost window.
 - Optional experimental `Option-Z/A/S/X/C/V/W/Q` command forwarding.
+- Configurable right-button mouse gestures and right-button mouse chords.
 - Menu-bar settings and user-level login-at-startup support.
 - Local-only operation: no networking, telemetry, analytics, or updater.
 
@@ -51,7 +52,23 @@ window.
 | `Option-Q` | Optional: behave like `Command-Q` |
 
 These Option-letter command shortcuts are disabled by default. Enable them from
-the menu bar item only if you want TrustedAltTab to intercept those shortcuts.
+the menu bar item only if you want AltGesture to intercept those shortcuts.
+
+Right-button gestures are enabled by default. Hold the right mouse button and
+drag, or hold the right button while pressing another mouse button, to trigger
+the shortcuts from the gesture config. On first launch, the app migrates the
+first available old config from:
+
+```text
+~/Library/Application Support/TrustedAltTab/right-gestures.json
+~/Library/Application Support/RightKeyGesture/gestures.json
+```
+
+The merged config is stored at:
+
+```text
+~/Library/Application Support/AltGesture/right-gestures.json
+```
 
 ## Menu Items
 
@@ -61,25 +78,34 @@ the menu bar item only if you want TrustedAltTab to intercept those shortcuts.
 - Include or exclude hidden app windows.
 - Enable or disable double-`Option` minimization.
 - Enable or disable experimental Option-letter command shortcuts.
+- Enable, restart, or reload right-button gestures.
+- Open the right-button gesture config file.
 - Enable or disable login-at-startup.
-- Open Accessibility and Screen Recording permission settings.
+- Open Accessibility, Input Monitoring, Automation, and Screen Recording
+  permission settings.
 - Show the window list manually.
 
 Login-at-startup is implemented with a user LaunchAgent:
 
 ```bash
-~/Library/LaunchAgents/local.trusted-alt-tab.login.plist
+~/Library/LaunchAgents/local.alt-gesture.login.plist
 ```
 
 ## Permissions
 
-TrustedAltTab may request:
+AltGesture may request:
 
 - Accessibility: read, restore, focus, minimize, move, and resize windows.
-- Screen Recording: generate local window thumbnails.
+- Input Monitoring: listen for right-button mouse gestures, mouse chords,
+  double-Option, and Option release.
+- Screen Recording: optional, only for local window thumbnails; thumbnails are
+  off by default to avoid requesting this permission.
+- Automation: conditional, only for gesture actions that send shortcuts through
+  System Events.
 
 Hotkey registration itself uses Carbon and does not require Accessibility.
-Screen Recording can be disabled by turning off thumbnails.
+See [docs/PERMISSIONS.zh-CN.md](docs/PERMISSIONS.zh-CN.md) for the minimal
+permission profile.
 
 ## Build
 
@@ -92,13 +118,13 @@ Build and install the app bundle:
 
 ```bash
 ./scripts/build-app.sh
-open ~/Applications/TrustedAltTab.app
+open ~/Applications/AltGesture.app
 ```
 
 The build script creates:
 
-- `dist/TrustedAltTab.app`
-- `~/Applications/TrustedAltTab.app`
+- `dist/AltGesture.app`
+- `~/Applications/AltGesture.app`
 
 It signs with the first available local Apple Development identity. If none is
 available, it falls back to ad-hoc signing.
@@ -114,7 +140,7 @@ If macOS will not show the permission prompt again:
 Then reopen:
 
 ```bash
-open ~/Applications/TrustedAltTab.app
+open ~/Applications/AltGesture.app
 ```
 
 ## Diagnostics
@@ -122,13 +148,13 @@ open ~/Applications/TrustedAltTab.app
 Logs are written locally:
 
 ```bash
-~/Library/Logs/TrustedAltTab.log
+~/Library/Logs/AltGesture.log
 ```
 
 ## Project Structure
 
 ```text
-Sources/TrustedAltTab/
+Sources/AltGesture/
   AppDelegate.swift
   HotKeyManager.swift
   OptionDoubleTapMonitor.swift
@@ -140,19 +166,26 @@ Sources/TrustedAltTab/
   CurrentWindowMinimizer.swift
   WindowSnapper.swift
   WindowCommandPerformer.swift
+  InputMonitoringPermission.swift
+  RightGestureConfig.swift
+  RightGestureEngine.swift
   LoginItemManager.swift
 scripts/
   build-app.sh
+  generate-app-icon.py
   reset-permissions.sh
 docs/
   ARCHITECTURE.md
+  PERMISSIONS.zh-CN.md
+Resources/
+  AppIcon.icns
 ```
 
 ## Relationship To AltTab
 
 This project is functionally inspired by the user experience of AltTab for
 macOS, but it does not copy, vendor, translate, or adapt AltTab source code.
-AltTab's public source is licensed under GPL-3.0. TrustedAltTab is an
+AltTab's public source is licensed under GPL-3.0. AltGesture is an
 independent implementation built directly on macOS APIs.
 
 See [NOTICE.md](NOTICE.md) for the attribution and license-boundary note.

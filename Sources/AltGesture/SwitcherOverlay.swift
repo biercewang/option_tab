@@ -3,7 +3,7 @@ import AppKit
 final class SwitcherOverlay {
     var onConfirm: ((WindowInfo) -> Void)?
 
-    private let thumbnailQueue = DispatchQueue(label: "local.trusted-alt-tab.thumbnails", qos: .userInitiated)
+    private let thumbnailQueue = DispatchQueue(label: "local.alt-gesture.thumbnails", qos: .userInitiated)
     private let panel: NSPanel
     private let rootView = NSView()
     private let shadowView = NSView()

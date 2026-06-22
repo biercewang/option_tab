@@ -1,6 +1,6 @@
 # Architecture
 
-TrustedAltTab is a small native macOS menu-bar utility.
+AltGesture is a small native macOS menu-bar utility.
 
 ## Main Components
 
@@ -9,6 +9,8 @@ TrustedAltTab is a small native macOS menu-bar utility.
 - `HotKeyManager`: registers global Carbon hotkeys.
 - `OptionDoubleTapMonitor`: watches modifier events for double-Option
   minimization and Option-release confirmation.
+- `InputMonitoringPermission`: centralizes Input Monitoring preflight and
+  request prompts for mouse and modifier event taps.
 - `WindowProvider`: collects visible windows through CoreGraphics and
   minimized/hidden windows through Accessibility.
 - `DisplayedWindowResolver`: resolves the visually frontmost window and maps it
@@ -19,6 +21,10 @@ TrustedAltTab is a small native macOS menu-bar utility.
 - `CurrentWindowMinimizer`: minimizes the visually frontmost window.
 - `WindowSnapper`: implements left/right/fill/restore layout shortcuts.
 - `WindowCommandPerformer`: optional experimental `Option-W/Q` support.
+- `RightGestureController`: owns right-button gesture config migration,
+  permission prompts, and listener lifecycle.
+- `RightGestureEngine`: listens for right-button gestures and mouse-button
+  chords, then dispatches the configured shortcuts.
 - `LoginItemManager`: writes/removes the user LaunchAgent for login startup.
 
 ## Window Discovery
@@ -33,4 +39,9 @@ available.
 The switcher hotkeys use Carbon and do not require Accessibility. Accessibility
 is required for precise focusing, minimized-window restore, minimize, move,
 resize, and optional command forwarding. Screen Recording is only used for
-thumbnails.
+thumbnails, which are disabled by default.
+
+Right-button gestures use a CoreGraphics event tap, so they need Accessibility
+and Input Monitoring. Some configured gesture actions use System Events to reach
+global shortcuts that do not reliably respond to synthesized CGEvents; those
+actions trigger macOS Automation permission for AltGesture.
