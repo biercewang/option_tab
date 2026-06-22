@@ -59,6 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.onConfirm = { [weak self] window in
             self?.completeSelection(window)
         }
+
+        rightGesture.onMouseSwitcherStep = { [weak self] reverse in
+            self?.handleMouseSwitcherStep(reverse: reverse)
+        }
+
+        rightGesture.onMouseSwitcherConfirm = { [weak self] in
+            self?.confirmMouseSwitcherSelection()
+        }
     }
 
     private func requestPermissions() {
@@ -154,12 +162,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleOptionTab(reverse: Bool, prefersImmediateDismissal: Bool = false) {
+    private func handleOptionTab(
+        reverse: Bool,
+        prefersImmediateDismissal: Bool = false,
+        waitsForOptionRelease: Bool = true
+    ) {
         DebugLog.write("handleOptionTab reverse=\(reverse) overlayVisible=\(overlay.isVisible)")
         preferImmediateOverlayDismissalOnConfirm = prefersImmediateDismissal
 
         if overlay.isVisible {
             overlay.cycle(reverse: reverse)
+            if !waitsForOptionRelease {
+                stopOptionReleaseWatcher()
+            }
             return
         }
 
@@ -193,7 +208,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             initialIndex = currentWindows.count > 1 ? 1 : 0
         }
         overlay.show(windows: currentWindows, selectedIndex: initialIndex)
-        startOptionReleaseWatcher()
+        if waitsForOptionRelease {
+            startOptionReleaseWatcher()
+        } else {
+            stopOptionReleaseWatcher()
+        }
+    }
+
+    private func handleMouseSwitcherStep(reverse: Bool) {
+        optionDoubleTap.cancelPendingTap()
+        DebugLog.write("mouse switcher step reverse=\(reverse)")
+        handleOptionTab(reverse: reverse, waitsForOptionRelease: false)
+    }
+
+    private func confirmMouseSwitcherSelection() {
+        guard overlay.isVisible else {
+            return
+        }
+        DebugLog.write("mouse switcher confirm")
+        confirmSelection()
     }
 
     private func confirmSelection() {

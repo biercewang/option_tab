@@ -11,6 +11,18 @@ final class RightGestureController {
     private let privacyShield: PrivacyShieldController
     private let engine: RightGestureEngine
 
+    var onMouseSwitcherStep: ((Bool) -> Void)? {
+        didSet {
+            engine.onMouseSwitcherStep = onMouseSwitcherStep
+        }
+    }
+
+    var onMouseSwitcherConfirm: (() -> Void)? {
+        didSet {
+            engine.onMouseSwitcherConfirm = onMouseSwitcherConfirm
+        }
+    }
+
     var configURL: URL {
         configStore.url
     }
@@ -205,6 +217,8 @@ final class RightGestureEngine {
     private var runLoopSource: CFRunLoopSource?
     private var rightButtonDown = false
     private var performedMouseChord = false
+    private var mouseSwitcherActive = false
+    private var scrollAccumulator = 0.0
     private var startPoint = CGPoint.zero
     private var lastPoint = CGPoint.zero
     private var rawPoints: [CGPoint] = []
@@ -217,6 +231,8 @@ final class RightGestureEngine {
     private var config: RightGestureConfig
     var onTripleContextClick: (() -> Void)?
     var shouldReplayContextClick: (() -> Bool)?
+    var onMouseSwitcherStep: ((Bool) -> Void)?
+    var onMouseSwitcherConfirm: (() -> Void)?
     private var contextClickTimes: [TimeInterval] = []
     private var pendingContextClick: DispatchWorkItem?
     private var replayPassthroughUntil = Date.distantPast
@@ -224,6 +240,7 @@ final class RightGestureEngine {
     private let contextClickReplayDelay: TimeInterval = 0.42
     private let tripleContextClickWindow: TimeInterval = 0.62
     private let replayPassthroughDistance: CGFloat = 4
+    private let minMouseSwitcherScrollStep = 0.35
     private(set) var state: State = .stopped
 
     init(config: RightGestureConfig) {
@@ -241,6 +258,7 @@ final class RightGestureEngine {
             (1 << CGEventType.rightMouseDown.rawValue) |
             (1 << CGEventType.rightMouseDragged.rawValue) |
             (1 << CGEventType.rightMouseUp.rawValue) |
+            (1 << CGEventType.scrollWheel.rawValue) |
             (1 << CGEventType.otherMouseDown.rawValue) |
             (1 << CGEventType.leftMouseDown.rawValue) |
             (1 << CGEventType.tapDisabledByTimeout.rawValue) |
@@ -290,6 +308,8 @@ final class RightGestureEngine {
         eventTap = nil
         cancelPendingContextClick()
         contextClickTimes.removeAll()
+        mouseSwitcherActive = false
+        scrollAccumulator = 0
         state = .stopped
     }
 
@@ -310,6 +330,8 @@ final class RightGestureEngine {
         case .rightMouseDown:
             rightButtonDown = true
             performedMouseChord = false
+            mouseSwitcherActive = false
+            scrollAccumulator = 0
             startPoint = event.location
             lastPoint = startPoint
             rawPoints = [startPoint]
@@ -332,6 +354,16 @@ final class RightGestureEngine {
             defer {
                 rawPoints.removeAll(keepingCapacity: true)
                 directions.removeAll(keepingCapacity: true)
+                mouseSwitcherActive = false
+                scrollAccumulator = 0
+            }
+            if mouseSwitcherActive {
+                cancelContextClickSequence()
+                DebugLog.write("right gesture mouse switcher confirm")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onMouseSwitcherConfirm?()
+                }
+                return nil
             }
             if performedMouseChord {
                 return nil
@@ -369,9 +401,56 @@ final class RightGestureEngine {
             performMouseChord(chordName(for: buttonNumber))
             return nil
 
+        case .scrollWheel:
+            guard rightButtonDown else {
+                return Unmanaged.passUnretained(event)
+            }
+            handleScrollWheelWhileRightButtonDown(event)
+            return nil
+
         default:
             return Unmanaged.passUnretained(event)
         }
+    }
+
+    private func handleScrollWheelWhileRightButtonDown(_ event: CGEvent) {
+        guard directions.isEmpty,
+              maxDistanceFromStart() <= maxContextClickDistance else {
+            return
+        }
+
+        let delta = verticalScrollDelta(from: event)
+        guard delta != 0 else {
+            return
+        }
+
+        scrollAccumulator += delta
+        guard abs(scrollAccumulator) >= minMouseSwitcherScrollStep else {
+            return
+        }
+
+        let reverse = scrollAccumulator > 0
+        scrollAccumulator = 0
+        mouseSwitcherActive = true
+        cancelContextClickSequence()
+        DebugLog.write("right gesture mouse switcher step reverse=\(reverse)")
+        DispatchQueue.main.async { [weak self] in
+            self?.onMouseSwitcherStep?(reverse)
+        }
+    }
+
+    private func verticalScrollDelta(from event: CGEvent) -> Double {
+        let fixed = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
+        if fixed != 0 {
+            return fixed
+        }
+
+        let point = event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1)
+        if point != 0 {
+            return Double(point)
+        }
+
+        return Double(event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     }
 
     private func appendDirection(from oldPoint: CGPoint, to newPoint: CGPoint) {
@@ -396,6 +475,8 @@ final class RightGestureEngine {
 
     private func performMouseChord(_ name: String) {
         performedMouseChord = true
+        mouseSwitcherActive = false
+        scrollAccumulator = 0
         cancelContextClickSequence()
         rawPoints.removeAll(keepingCapacity: true)
         directions.removeAll(keepingCapacity: true)

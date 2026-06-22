@@ -26,6 +26,8 @@ window.
   fill, and restore.
 - Optional experimental `Option-Z/A/S/X/C/V/W/Q` command forwarding.
 - Configurable right-button mouse gestures and right-button mouse chords.
+- Mouse-driven window switching: hold the right button, scroll to select a
+  window, then release the right button to confirm.
 - Triple right-click privacy shield that covers all screens with black panels
   and hides the pointer; triple right-click again to restore.
 - Menu-bar settings and user-level login-at-startup support.
@@ -46,6 +48,7 @@ window.
 | `Option-↑` | Fill the current screen's usable area without macOS full screen |
 | `Option-↓` | Restore the window to the pre-layout frame |
 | `Option-3` | Toggle fill/restore |
+| hold right button + scroll wheel | Open the window switcher and move through windows; release the right button to confirm |
 | triple right-click | Show the privacy shield and hide the pointer; triple right-click again to restore |
 | `Option-Z` | Optional: behave like `Command-Z` |
 | `Option-A` | Optional: behave like `Command-A` |
@@ -61,9 +64,11 @@ the menu bar item only if you want AltGesture to intercept those shortcuts.
 
 Right-button gestures are enabled by default. Hold the right mouse button and
 drag, or hold the right button while pressing another mouse button, to trigger
-the shortcuts from the gesture config. Triple right-click toggles the privacy
-shield and hides the pointer. On first launch, the app migrates the first
-available old config from:
+the shortcuts from the gesture config. Hold the right button and scroll to open
+the window switcher: scroll down moves forward, scroll up reverses, and
+releasing the right button confirms the selected window. Triple right-click
+toggles the privacy shield and hides the pointer. On first launch, the app
+migrates the first available old config from:
 
 ```text
 ~/Library/Application Support/TrustedAltTab/right-gestures.json
@@ -106,8 +111,8 @@ Login-at-startup is implemented with a user LaunchAgent:
 AltGesture may request:
 
 - Accessibility: read, restore, focus, minimize, move, and resize windows.
-- Input Monitoring: listen for right-button mouse gestures, mouse chords,
-  triple right-click, double-Option, and Option release.
+- Input Monitoring: listen for right-button mouse gestures, right-button scroll
+  switching, mouse chords, triple right-click, double-Option, and Option release.
 - Screen Recording: optional, only for local window thumbnails; thumbnails are
   off by default to avoid requesting this permission.
 - Automation: conditional, only for custom gesture actions that still send
