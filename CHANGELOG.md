@@ -34,4 +34,6 @@
 - Made thumbnails opt-in by default to keep Screen Recording permission optional.
 - Added native Magnet-style window layouts and migrated known Magnet arrow
   gestures to built-in window actions.
+- Preserved ordinary right-click behavior by replaying context clicks when no
+  gesture or mouse chord is recognized.
 - Added menu switches for common settings and login-at-startup support.

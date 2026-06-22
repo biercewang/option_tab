@@ -203,6 +203,9 @@ final class RightGestureEngine {
     private var rawPoints: [CGPoint] = []
     private var directions: [RightGestureDirection] = []
     private let minSegmentDistance: CGFloat = 36
+    private let maxContextClickDistance: CGFloat = 12
+    private let replayEventMarker: Int64 = 0xA176_357
+    private let replaySource = CGEventSource(stateID: .hidSystemState)
     private let sender = RightGestureShortcutSender()
     private var config: RightGestureConfig
     private(set) var state: State = .stopped
@@ -280,6 +283,10 @@ final class RightGestureEngine {
             return Unmanaged.passUnretained(event)
         }
 
+        if event.getIntegerValueField(.eventSourceUserData) == replayEventMarker {
+            return Unmanaged.passUnretained(event)
+        }
+
         switch type {
         case .rightMouseDown:
             rightButtonDown = true
@@ -320,6 +327,9 @@ final class RightGestureEngine {
                 DebugLog.write("right gesture matched \(code): \(action.name)")
                 sender.send(action)
                 return nil
+            }
+            if shouldReplayContextClick() {
+                replayContextClick(at: event.location)
             }
             return nil
 
@@ -374,7 +384,10 @@ final class RightGestureEngine {
     }
 
     private func matchTemplate() -> RightGestureShortcutAction? {
-        guard let templates = config.templates, !templates.isEmpty, rawPoints.count >= 2 else {
+        guard let templates = config.templates,
+              !templates.isEmpty,
+              rawPoints.count >= 2,
+              maxDistanceFromStart() >= minSegmentDistance else {
             return nil
         }
 
@@ -474,6 +487,37 @@ final class RightGestureEngine {
             sum + hypot(pair.1.x - pair.0.x, pair.1.y - pair.0.y)
         }
         return total / CGFloat(lhs.count)
+    }
+
+    private func shouldReplayContextClick() -> Bool {
+        directions.isEmpty && maxDistanceFromStart() <= maxContextClickDistance
+    }
+
+    private func maxDistanceFromStart() -> CGFloat {
+        rawPoints.reduce(CGFloat(0)) { distance, point in
+            max(distance, hypot(point.x - startPoint.x, point.y - startPoint.y))
+        }
+    }
+
+    private func replayContextClick(at point: CGPoint) {
+        postReplayMouseEvent(type: .rightMouseDown, at: point)
+        usleep(12_000)
+        postReplayMouseEvent(type: .rightMouseUp, at: point)
+        DebugLog.write("right gesture replayed context click")
+    }
+
+    private func postReplayMouseEvent(type: CGEventType, at point: CGPoint) {
+        guard let event = CGEvent(
+            mouseEventSource: replaySource,
+            mouseType: type,
+            mouseCursorPosition: point,
+            mouseButton: .right
+        ) else {
+            return
+        }
+
+        event.setIntegerValueField(.eventSourceUserData, value: replayEventMarker)
+        event.post(tap: .cghidEventTap)
     }
 
     private func chordName(for buttonNumber: Int64) -> String {
