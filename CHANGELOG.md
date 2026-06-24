@@ -42,4 +42,6 @@
   through the same switcher, and release the right button to confirm.
 - Added a triple right-click privacy shield that covers all screens with black
   panels, hides the pointer, and toggles off with another triple right-click.
+- Strengthened privacy shield cursor hiding with CoreGraphics so the pointer
+  stays hidden while the shield is active.
 - Added menu switches for common settings and login-at-startup support.

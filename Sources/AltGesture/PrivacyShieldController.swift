@@ -1,8 +1,10 @@
 import AppKit
+import CoreGraphics
 
 final class PrivacyShieldController {
     private var panels: [NSPanel] = []
-    private var cursorHidden = false
+    private var appKitCursorHidden = false
+    private var displayCursorHidden = false
     private var screenObserver: NSObjectProtocol?
 
     var isVisible: Bool {
@@ -68,16 +70,13 @@ final class PrivacyShieldController {
             return panel
         }
 
-        if !cursorHidden {
-            NSCursor.hide()
-            cursorHidden = true
-        }
+        hideCursor()
 
-        DebugLog.write("privacy shield shown screens=\(panels.count)")
+        DebugLog.write("privacy shield shown screens=\(panels.count) cursorHidden=\(displayCursorHidden)")
     }
 
     func hide() {
-        guard !panels.isEmpty || cursorHidden else {
+        guard !panels.isEmpty || appKitCursorHidden || displayCursorHidden else {
             return
         }
 
@@ -86,12 +85,39 @@ final class PrivacyShieldController {
         }
         panels.removeAll()
 
-        if cursorHidden {
-            NSCursor.unhide()
-            cursorHidden = false
-        }
+        showCursor()
 
         DebugLog.write("privacy shield hidden")
+    }
+
+    private func hideCursor() {
+        if !appKitCursorHidden {
+            NSCursor.hide()
+            appKitCursorHidden = true
+        }
+
+        if !displayCursorHidden {
+            let error = CGDisplayHideCursor(CGMainDisplayID())
+            displayCursorHidden = error == .success
+            if error != .success {
+                DebugLog.write("privacy shield display cursor hide failed error=\(error.rawValue)")
+            }
+        }
+    }
+
+    private func showCursor() {
+        if displayCursorHidden {
+            let error = CGDisplayShowCursor(CGMainDisplayID())
+            if error != .success {
+                DebugLog.write("privacy shield display cursor show failed error=\(error.rawValue)")
+            }
+            displayCursorHidden = false
+        }
+
+        if appKitCursorHidden {
+            NSCursor.unhide()
+            appKitCursorHidden = false
+        }
     }
 }
 
