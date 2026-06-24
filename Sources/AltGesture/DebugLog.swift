@@ -3,7 +3,7 @@ import Foundation
 enum DebugLog {
     private static let logURL = FileManager.default
         .homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/TrustedAltTab.log")
+        .appendingPathComponent("Library/Logs/AltGesture.log")
 
     static func write(_ message: String) {
         let formatter = ISO8601DateFormatter()

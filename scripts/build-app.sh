@@ -2,15 +2,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="TrustedAltTab"
+APP_NAME="AltGesture"
 DIST_APP="$ROOT/dist/$APP_NAME.app"
 INSTALL_APP="${INSTALL_APP:-$HOME/Applications/$APP_NAME.app}"
-STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/trusted-alttab.XXXXXX")"
+STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/alt-gesture.XXXXXX")"
 APP_DIR="$STAGING_ROOT/$APP_NAME.app"
 CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
-BUNDLE_ID="local.trusted-alt-tab"
+BUNDLE_ID="local.alt-gesture"
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
 
 trap 'rm -rf "$STAGING_ROOT"' EXIT
@@ -20,6 +20,9 @@ swift build -c release
 
 mkdir -p "$MACOS" "$RESOURCES"
 cp ".build/release/$APP_NAME" "$MACOS/$APP_NAME"
+if [[ -d "$ROOT/Resources" ]]; then
+  ditto --norsrc --noextattr --noqtn "$ROOT/Resources" "$RESOURCES"
+fi
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -35,6 +38,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
@@ -49,6 +54,10 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <true/>
   <key>NSHumanReadableCopyright</key>
   <string>Local-only app generated for personal use.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>用于通过 System Events 触发已配置的右键手势快捷键。</string>
+  <key>NSInputMonitoringUsageDescription</key>
+  <string>用于监听右键鼠标手势和 Option 释放事件，不会记录输入内容。</string>
   <key>NSScreenCaptureDescription</key>
   <string>用于显示窗口缩略图，不会上传或保存屏幕内容。</string>
 </dict>

@@ -2,16 +2,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "TrustedAltTab",
+    name: "AltGesture",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "TrustedAltTab", targets: ["TrustedAltTab"])
+        .executable(name: "AltGesture", targets: ["AltGesture"])
     ],
     targets: [
         .executableTarget(
-            name: "TrustedAltTab",
+            name: "AltGesture",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),

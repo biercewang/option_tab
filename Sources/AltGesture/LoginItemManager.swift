@@ -1,7 +1,7 @@
 import Foundation
 
 final class LoginItemManager {
-    private let label = "local.trusted-alt-tab.login"
+    private let label = "local.alt-gesture.login"
 
     var isEnabled: Bool {
         FileManager.default.fileExists(atPath: launchAgentURL.path)
@@ -63,7 +63,7 @@ enum LoginItemError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notRunningFromAppBundle:
-            return "TrustedAltTab 需要从 .app 启动后才能设置开机自动启动。"
+            return "AltGesture 需要从 .app 启动后才能设置开机自动启动。"
         }
     }
 }

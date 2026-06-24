@@ -5,6 +5,13 @@ import Foundation
 enum WindowSnapDirection {
     case left
     case right
+    case top
+    case bottom
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+    case center
     case fill
     case restore
     case toggleFill
@@ -15,6 +22,20 @@ enum WindowSnapDirection {
             return "left"
         case .right:
             return "right"
+        case .top:
+            return "top"
+        case .bottom:
+            return "bottom"
+        case .topLeft:
+            return "topLeft"
+        case .topRight:
+            return "topRight"
+        case .bottomLeft:
+            return "bottomLeft"
+        case .bottomRight:
+            return "bottomRight"
+        case .center:
+            return "center"
         case .fill:
             return "fill"
         case .restore:
@@ -23,11 +44,47 @@ enum WindowSnapDirection {
             return "toggleFill"
         }
     }
+
+    init?(rightGestureActionName name: String) {
+        switch name.lowercased() {
+        case "left", "lefthalf":
+            self = .left
+        case "right", "righthalf":
+            self = .right
+        case "top", "up", "tophalf":
+            self = .top
+        case "bottom", "down", "bottomhalf":
+            self = .bottom
+        case "topleft", "upperleft":
+            self = .topLeft
+        case "topright", "upperright":
+            self = .topRight
+        case "bottomleft", "lowerleft":
+            self = .bottomLeft
+        case "bottomright", "lowerright":
+            self = .bottomRight
+        case "center", "centre":
+            self = .center
+        case "fill", "maximize", "maximise":
+            self = .fill
+        case "restore":
+            self = .restore
+        case "togglefill", "togglemaximize", "togglemaximise":
+            self = .toggleFill
+        default:
+            return nil
+        }
+    }
 }
 
 final class WindowSnapper {
     private let resolver = DisplayedWindowResolver()
-    private var restoreFrames: [String: CGRect] = [:]
+    private let restoreStore = WindowRestoreFrameStore()
+    private var restoreFrames: [String: CGRect]
+
+    init() {
+        restoreFrames = restoreStore.load()
+    }
 
     func snapFrontmostWindow(to direction: WindowSnapDirection) -> Bool {
         guard Accessibility.isTrusted(prompt: true) else {
@@ -80,6 +137,7 @@ final class WindowSnapper {
         }
 
         restoreFrames[key] = Accessibility.rectAttribute(window) ?? target.bounds
+        restoreStore.save(restoreFrames)
     }
 
     private func restore(_ window: AXUIElement, target: DisplayedWindowTarget) -> Bool {
@@ -93,6 +151,7 @@ final class WindowSnapper {
 
         if confirm(window, frame: frame) {
             restoreFrames.removeValue(forKey: key)
+            restoreStore.save(restoreFrames)
             DebugLog.write("restored displayed window app=\(target.appName) title=\(target.displayTitle)")
             return true
         }
@@ -145,6 +204,8 @@ final class WindowSnapper {
         let visibleFrame = visibleFrameForTarget(target)
         let leftWidth = floor(visibleFrame.width / 2)
         let rightWidth = visibleFrame.width - leftWidth
+        let topHeight = floor(visibleFrame.height / 2)
+        let bottomHeight = visibleFrame.height - topHeight
 
         switch direction {
         case .left:
@@ -160,6 +221,57 @@ final class WindowSnapper {
                 y: visibleFrame.minY,
                 width: rightWidth,
                 height: visibleFrame.height
+            ).integral
+        case .top:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY,
+                width: visibleFrame.width,
+                height: topHeight
+            ).integral
+        case .bottom:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY + topHeight,
+                width: visibleFrame.width,
+                height: bottomHeight
+            ).integral
+        case .topLeft:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY,
+                width: leftWidth,
+                height: topHeight
+            ).integral
+        case .topRight:
+            return CGRect(
+                x: visibleFrame.minX + leftWidth,
+                y: visibleFrame.minY,
+                width: rightWidth,
+                height: topHeight
+            ).integral
+        case .bottomLeft:
+            return CGRect(
+                x: visibleFrame.minX,
+                y: visibleFrame.minY + topHeight,
+                width: leftWidth,
+                height: bottomHeight
+            ).integral
+        case .bottomRight:
+            return CGRect(
+                x: visibleFrame.minX + leftWidth,
+                y: visibleFrame.minY + topHeight,
+                width: rightWidth,
+                height: bottomHeight
+            ).integral
+        case .center:
+            let currentWidth = min(max(target.bounds.width, visibleFrame.width * 0.35), visibleFrame.width)
+            let currentHeight = min(max(target.bounds.height, visibleFrame.height * 0.35), visibleFrame.height)
+            return CGRect(
+                x: visibleFrame.midX - currentWidth / 2,
+                y: visibleFrame.midY - currentHeight / 2,
+                width: currentWidth,
+                height: currentHeight
             ).integral
         case .fill:
             return visibleFrame.integral
@@ -223,5 +335,62 @@ final class WindowSnapper {
             && abs(lhs.origin.y - rhs.origin.y) <= tolerance
             && abs(lhs.width - rhs.width) <= tolerance
             && abs(lhs.height - rhs.height) <= tolerance
+    }
+}
+
+private final class WindowRestoreFrameStore {
+    private let url: URL
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
+
+    init() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let directory = base.appendingPathComponent("AltGesture", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        url = directory.appendingPathComponent("window-restore-frames.json")
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    func load() -> [String: CGRect] {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return [:]
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let stored = try decoder.decode([String: StoredFrame].self, from: data)
+            return stored.mapValues(\.rect)
+        } catch {
+            DebugLog.write("restore frame store read failed: \(error)")
+            return [:]
+        }
+    }
+
+    func save(_ frames: [String: CGRect]) {
+        do {
+            let stored = frames.mapValues { StoredFrame(rect: $0) }
+            let data = try encoder.encode(stored)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            DebugLog.write("restore frame store write failed: \(error)")
+        }
+    }
+
+    private struct StoredFrame: Codable {
+        let x: CGFloat
+        let y: CGFloat
+        let width: CGFloat
+        let height: CGFloat
+
+        init(rect: CGRect) {
+            x = rect.origin.x
+            y = rect.origin.y
+            width = rect.width
+            height = rect.height
+        }
+
+        var rect: CGRect {
+            CGRect(x: x, y: y, width: width, height: height)
+        }
     }
 }

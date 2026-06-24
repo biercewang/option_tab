@@ -11,9 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowCommandPerformer = WindowCommandPerformer()
     private let recentWindowTracker = RecentWindowTracker()
     private let loginItemManager = LoginItemManager()
+    private let rightGesture = RightGestureController()
     private let overlay = SwitcherOverlay()
     private let settings = AppSettings.shared
-    private let accessibilityWindowQueue = DispatchQueue(label: "local.trusted-alt-tab.accessibility-windows", qos: .userInitiated)
+    private let accessibilityWindowQueue = DispatchQueue(label: "local.alt-gesture.accessibility-windows", qos: .userInitiated)
 
     private var statusItem: NSStatusItem?
     private var currentWindows: [WindowInfo] = []
@@ -33,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requestPermissions()
         startKeyboardCapture()
         startOptionDoubleTap()
+        startRightGesture()
+        rebuildStatusMenu()
         startAccessibilityCache()
         startRecentWindowTracking()
     }
@@ -56,18 +59,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.onConfirm = { [weak self] window in
             self?.completeSelection(window)
         }
+
+        rightGesture.onMouseSwitcherStep = { [weak self] reverse in
+            self?.handleMouseSwitcherStep(reverse: reverse)
+        }
+
+        rightGesture.onMouseSwitcherConfirm = { [weak self] in
+            self?.confirmMouseSwitcherSelection()
+        }
+
+        rightGesture.onDoubleContextClick = { [weak self] in
+            self?.handleOptionDoubleTap()
+        }
     }
 
     private func requestPermissions() {
         if settings.includeMinimizedWindows
             || settings.includeHiddenWindows
             || settings.minimizeOnDoubleOption
-            || settings.optionCommandKeysEnabled {
+            || settings.optionCommandKeysEnabled
+            || settings.rightGestureEnabled {
             _ = Accessibility.isTrusted(prompt: true)
         }
 
         if settings.showThumbnails {
             ScreenCapturePermission.requestIfNeeded()
+        }
+
+        if settings.minimizeOnDoubleOption || settings.rightGestureEnabled {
+            InputMonitoringPermission.requestIfNeeded()
+        }
+
+        if settings.rightGestureEnabled {
+            rightGesture.requestPermissionsIfNeeded()
         }
     }
 
@@ -142,12 +166,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleOptionTab(reverse: Bool, prefersImmediateDismissal: Bool = false) {
+    private func handleOptionTab(
+        reverse: Bool,
+        prefersImmediateDismissal: Bool = false,
+        waitsForOptionRelease: Bool = true
+    ) {
         DebugLog.write("handleOptionTab reverse=\(reverse) overlayVisible=\(overlay.isVisible)")
         preferImmediateOverlayDismissalOnConfirm = prefersImmediateDismissal
 
         if overlay.isVisible {
             overlay.cycle(reverse: reverse)
+            if !waitsForOptionRelease {
+                stopOptionReleaseWatcher()
+            }
             return
         }
 
@@ -181,7 +212,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             initialIndex = currentWindows.count > 1 ? 1 : 0
         }
         overlay.show(windows: currentWindows, selectedIndex: initialIndex)
-        startOptionReleaseWatcher()
+        if waitsForOptionRelease {
+            startOptionReleaseWatcher()
+        } else {
+            stopOptionReleaseWatcher()
+        }
+    }
+
+    private func handleMouseSwitcherStep(reverse: Bool) {
+        optionDoubleTap.cancelPendingTap()
+        DebugLog.write("mouse switcher step reverse=\(reverse)")
+        handleOptionTab(reverse: reverse, waitsForOptionRelease: false)
+    }
+
+    private func confirmMouseSwitcherSelection() {
+        guard overlay.isVisible else {
+            return
+        }
+        DebugLog.write("mouse switcher confirm")
+        confirmSelection()
     }
 
     private func confirmSelection() {
@@ -455,12 +504,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildStatusMenu() {
         let item = statusItem ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "Alt"
-        item.button?.toolTip = "TrustedAltTab"
+        item.button?.title = "AG"
+        item.button?.toolTip = "AltGesture"
         statusItem = item
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "TrustedAltTab", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "AltGesture", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
 
         let enabledItem = NSMenuItem(title: "启用 Option-Tab", action: #selector(toggleEnabled), keyEquivalent: "")
@@ -483,7 +532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hiddenItem.state = settings.includeHiddenWindows ? .on : .off
         menu.addItem(hiddenItem)
 
-        let doubleOptionItem = NSMenuItem(title: "双击 Option 最小化当前窗口", action: #selector(toggleDoubleOptionMinimize), keyEquivalent: "")
+        let doubleOptionItem = NSMenuItem(title: "双击 Option / 右键最小化当前窗口", action: #selector(toggleDoubleOptionMinimize), keyEquivalent: "")
         doubleOptionItem.target = self
         doubleOptionItem.state = settings.minimizeOnDoubleOption ? .on : .off
         menu.addItem(doubleOptionItem)
@@ -492,6 +541,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         optionCommandItem.target = self
         optionCommandItem.state = settings.optionCommandKeysEnabled ? .on : .off
         menu.addItem(optionCommandItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let rightGestureItem = NSMenuItem(title: "启用右键手势", action: #selector(toggleRightGesture), keyEquivalent: "")
+        rightGestureItem.target = self
+        rightGestureItem.state = settings.rightGestureEnabled ? .on : .off
+        menu.addItem(rightGestureItem)
+
+        let rightGestureStatusItem = NSMenuItem(title: rightGestureStatusText(), action: nil, keyEquivalent: "")
+        rightGestureStatusItem.isEnabled = false
+        menu.addItem(rightGestureStatusItem)
+
+        let reloadGestureItem = NSMenuItem(title: "重新加载右键手势配置", action: #selector(reloadRightGestureConfig), keyEquivalent: "")
+        reloadGestureItem.target = self
+        reloadGestureItem.isEnabled = settings.rightGestureEnabled
+        menu.addItem(reloadGestureItem)
+
+        let restartGestureItem = NSMenuItem(title: "重启右键手势监听", action: #selector(restartRightGestureListener), keyEquivalent: "")
+        restartGestureItem.target = self
+        restartGestureItem.isEnabled = settings.rightGestureEnabled
+        menu.addItem(restartGestureItem)
+
+        let openGestureConfigItem = NSMenuItem(title: "打开右键手势配置", action: #selector(openRightGestureConfig), keyEquivalent: "")
+        openGestureConfigItem.target = self
+        menu.addItem(openGestureConfigItem)
 
         let loginItem = NSMenuItem(title: "开机自动启动", action: #selector(toggleLoginItem), keyEquivalent: "")
         loginItem.target = self
@@ -512,6 +586,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screenItem.target = self
         menu.addItem(screenItem)
 
+        let inputItem = NSMenuItem(title: "打开输入监控权限设置", action: #selector(openInputMonitoringSettings), keyEquivalent: "")
+        inputItem.target = self
+        menu.addItem(inputItem)
+
+        let automationItem = NSMenuItem(title: "打开自动化权限设置", action: #selector(openAutomationSettings), keyEquivalent: "")
+        automationItem.target = self
+        menu.addItem(automationItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
@@ -527,7 +609,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusItemTitle() {
-        statusItem?.button?.title = settings.enabled ? "Alt" : "Alt off"
+        if settings.rightGestureEnabled, rightGesture.state == .permissionDenied {
+            statusItem?.button?.title = settings.enabled ? "AG!" : "AG off!"
+        } else {
+            statusItem?.button?.title = settings.enabled ? "AG" : "AG off"
+        }
     }
 
     @objc private func toggleEnabled() {
@@ -578,6 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if settings.minimizeOnDoubleOption {
             _ = Accessibility.isTrusted(prompt: true)
+            InputMonitoringPermission.requestIfNeeded()
         }
 
         rebuildStatusMenu()
@@ -601,6 +688,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildStatusMenu()
     }
 
+    @objc private func toggleRightGesture() {
+        settings.rightGestureEnabled.toggle()
+
+        if settings.rightGestureEnabled {
+            startRightGesture()
+        } else {
+            rightGesture.stop()
+        }
+
+        rebuildStatusMenu()
+    }
+
+    @objc private func reloadRightGestureConfig() {
+        rightGesture.reloadConfigAndRestart()
+        rebuildStatusMenu()
+    }
+
+    @objc private func restartRightGestureListener() {
+        startRightGesture()
+        rebuildStatusMenu()
+    }
+
+    @objc private func openRightGestureConfig() {
+        NSWorkspace.shared.activateFileViewerSelecting([rightGesture.configURL])
+    }
+
     @objc private func toggleLoginItem() {
         do {
             try loginItemManager.setEnabled(!loginItemManager.isEnabled)
@@ -622,14 +735,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsOpener.openScreenCapture()
     }
 
+    @objc private func openInputMonitoringSettings() {
+        SettingsOpener.openInputMonitoring()
+    }
+
+    @objc private func openAutomationSettings() {
+        SettingsOpener.openAutomation()
+    }
+
     @objc private func quit() {
+        rightGesture.stop()
         NSApp.terminate(nil)
     }
 
     private func showHotKeyAlert() {
         let alert = NSAlert()
-        alert.messageText = "TrustedAltTab 无法捕获快捷键"
-        alert.informativeText = "Option-Tab、Option-方向键或 Option 字母快捷键可能已被其他应用占用。请退出其他窗口管理器，或在菜单栏里重新启用 TrustedAltTab。"
+        alert.messageText = "AltGesture 无法捕获快捷键"
+        alert.informativeText = "Option-Tab、Option-方向键或 Option 字母快捷键可能已被其他应用占用。请退出其他窗口管理器，或在菜单栏里重新启用 AltGesture。"
         alert.addButton(withTitle: "好")
         alert.addButton(withTitle: "稍后")
         alert.runModal()
@@ -643,6 +765,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         updateStatusItemTitle()
         return true
+    }
+
+    private func startRightGesture() {
+        rightGesture.startIfEnabled()
+        updateStatusItemTitle()
+    }
+
+    private func rightGestureStatusText() -> String {
+        guard settings.rightGestureEnabled else {
+            return "右键手势：已停用"
+        }
+
+        switch rightGesture.state {
+        case .running:
+            return "右键手势：运行中"
+        case .permissionDenied:
+            return "右键手势：权限不足"
+        case .stopped:
+            return "右键手势：未运行"
+        }
     }
 
     private func showErrorAlert(message: String, detail: String) {
