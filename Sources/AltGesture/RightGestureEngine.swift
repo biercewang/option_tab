@@ -23,6 +23,12 @@ final class RightGestureController {
         }
     }
 
+    var onDoubleContextClick: (() -> Void)? {
+        didSet {
+            engine.onDoubleContextClick = onDoubleContextClick
+        }
+    }
+
     var configURL: URL {
         configStore.url
     }
@@ -233,6 +239,7 @@ final class RightGestureEngine {
     var shouldReplayContextClick: (() -> Bool)?
     var onMouseSwitcherStep: ((Bool) -> Void)?
     var onMouseSwitcherConfirm: (() -> Void)?
+    var onDoubleContextClick: (() -> Void)?
     private var contextClickTimes: [TimeInterval] = []
     private var pendingContextClick: DispatchWorkItem?
     private var replayPassthroughUntil = Date.distantPast
@@ -612,7 +619,36 @@ final class RightGestureEngine {
             return
         }
 
+        if contextClickTimes.count == 2 {
+            scheduleDoubleContextClick()
+            return
+        }
+
         scheduleContextClickReplay(at: point)
+    }
+
+    private func scheduleDoubleContextClick() {
+        cancelPendingContextClick()
+        guard shouldReplayContextClick?() ?? true else {
+            return
+        }
+
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else {
+                return
+            }
+            self.pendingContextClick = nil
+            self.contextClickTimes.removeAll()
+            guard self.shouldReplayContextClick?() ?? true else {
+                return
+            }
+            DebugLog.write("right gesture double context click minimize current window")
+            DispatchQueue.main.async { [weak self] in
+                self?.onDoubleContextClick?()
+            }
+        }
+        pendingContextClick = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + contextClickReplayDelay, execute: item)
     }
 
     private func scheduleContextClickReplay(at point: CGPoint) {

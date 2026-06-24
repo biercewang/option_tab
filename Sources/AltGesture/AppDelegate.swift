@@ -67,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rightGesture.onMouseSwitcherConfirm = { [weak self] in
             self?.confirmMouseSwitcherSelection()
         }
+
+        rightGesture.onDoubleContextClick = { [weak self] in
+            self?.handleOptionDoubleTap()
+        }
     }
 
     private func requestPermissions() {
@@ -528,7 +532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hiddenItem.state = settings.includeHiddenWindows ? .on : .off
         menu.addItem(hiddenItem)
 
-        let doubleOptionItem = NSMenuItem(title: "双击 Option 最小化当前窗口", action: #selector(toggleDoubleOptionMinimize), keyEquivalent: "")
+        let doubleOptionItem = NSMenuItem(title: "双击 Option / 右键最小化当前窗口", action: #selector(toggleDoubleOptionMinimize), keyEquivalent: "")
         doubleOptionItem.target = self
         doubleOptionItem.state = settings.minimizeOnDoubleOption ? .on : .off
         menu.addItem(doubleOptionItem)

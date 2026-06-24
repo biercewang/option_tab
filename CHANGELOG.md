@@ -8,6 +8,8 @@
 - Added MRU-style window ordering.
 - Added app/window thumbnails with screen-recording permission fallback.
 - Added double `Option` current-window minimization.
+- Added double right-click current-window minimization with the same behavior
+  as double `Option`.
 - Made double `Option` restore the most recently minimized window when all
   windows are already minimized.
 - Reduced restore-time visual jitter by focusing only the selected window's app

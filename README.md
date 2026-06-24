@@ -19,8 +19,9 @@ window.
 - Visible and minimized-to-Dock windows in the same list.
 - Optional window thumbnails; disabled by default to minimize permission prompts.
 - App-icon fallback when thumbnails are disabled or unavailable.
-- Double `Option` to minimize the visually frontmost window, or restore the
-  most recently minimized window when all windows are minimized.
+- Double `Option` or double right-click to minimize the visually frontmost
+  window, or restore the most recently minimized window when all windows are
+  minimized.
 - Window layout shortcuts for the visually frontmost window.
 - Built-in Magnet-style layouts: left/right/top/bottom halves, corners, center,
   fill, and restore.
@@ -41,6 +42,7 @@ window.
 | `Option-Shift-Tab` | Reverse in the window switcher |
 | `Option-·` | Reverse in the window switcher |
 | double `Option` | Minimize the visually frontmost window, or restore the most recently minimized window when none are visible |
+| double right-click | Minimize the visually frontmost window; same behavior as double `Option` |
 | `Option-←` | Move the visually frontmost window to the left half |
 | `Option-→` | Move the visually frontmost window to the right half |
 | `Option-1` | Move the visually frontmost window to the left half |
@@ -64,11 +66,12 @@ the menu bar item only if you want AltGesture to intercept those shortcuts.
 
 Right-button gestures are enabled by default. Hold the right mouse button and
 drag, or hold the right button while pressing another mouse button, to trigger
-the shortcuts from the gesture config. Hold the right button and scroll to open
-the window switcher: scroll down moves forward, scroll up reverses, and
-releasing the right button confirms the selected window. Triple right-click
-toggles the privacy shield and hides the pointer. On first launch, the app
-migrates the first available old config from:
+the shortcuts from the gesture config. Double right-click minimizes the current
+window with the same behavior as double `Option`. Hold the right button and
+scroll to open the window switcher: scroll down moves forward, scroll up
+reverses, and releasing the right button confirms the selected window. Triple
+right-click toggles the privacy shield and hides the pointer. On first launch,
+the app migrates the first available old config from:
 
 ```text
 ~/Library/Application Support/TrustedAltTab/right-gestures.json
@@ -111,8 +114,9 @@ Login-at-startup is implemented with a user LaunchAgent:
 AltGesture may request:
 
 - Accessibility: read, restore, focus, minimize, move, and resize windows.
-- Input Monitoring: listen for right-button mouse gestures, right-button scroll
-  switching, mouse chords, triple right-click, double-Option, and Option release.
+- Input Monitoring: listen for right-button mouse gestures, double right-click,
+  right-button scroll switching, mouse chords, triple right-click,
+  double-Option, and Option release.
 - Screen Recording: optional, only for local window thumbnails; thumbnails are
   off by default to avoid requesting this permission.
 - Automation: conditional, only for custom gesture actions that still send
